@@ -182,14 +182,14 @@ something.
 - Haptic tick at full charge; a distinct one on dash.
 - On-device check: charge, release, and double-tap all behave on a real touch sequence.
 
-### F3 · Top-down rendering — `todo`
+### F3 · Top-down rendering — `done`
 **As a player** I want to see the whole pitch at once.
 - Landscape. The circle fits the height, centred, with the thumb controls in the margins either
   side of it and the HUD along the top; no scrolling, no camera.
 - The human's goal is at the bottom whichever slot they drew.
 - Positions interpolate between simulation steps so motion is smooth at 60 and 120 Hz.
 
-### F4 · Figures and kits — `todo`
+### F4 · Figures and kits — `done`
 **As a player** I want to tell everyone apart instantly.
 - Shirt, head, hair, nose and boots drawn per `ART_STYLE.md`; facing readable at a glance.
 - Own player carries an outline ring.

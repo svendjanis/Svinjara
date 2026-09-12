@@ -28,6 +28,14 @@ enum Theme {
     /// thumbs, which is the whole reason for landscape — controls beside the pitch, not on it.
     static let pitchScreenFraction: CGFloat = 0.92
 
+    /// Figures are drawn larger than the disc that actually collides.
+    ///
+    /// At an honest 1.0 a player is about 16 pt across on a phone in landscape — roughly 2 mm,
+    /// too small to read a kit or tell which way somebody is facing. The overlap this
+    /// introduces is the standard arcade trade and nobody notices it; not being able to tell
+    /// five players apart would be noticed immediately.
+    static let figureScale: CGFloat = 1.7
+
     /// Converts simulation metres to screen points for a given view size and pitch radius.
     static func pointsPerMetre(viewSize: CGSize, pitchRadius: Double) -> CGFloat {
         let shortEdge = min(viewSize.width, viewSize.height)

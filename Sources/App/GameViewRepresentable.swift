@@ -1,3 +1,4 @@
+import Foundation
 import SpriteKit
 import SwiftUI
 
@@ -15,7 +16,11 @@ struct GameViewRepresentable: UIViewRepresentable {
         // SwiftUI does not promise another update pass after layout, so gating on the view's
         // size there can leave the scene un-presented forever. `.resizeFill` means the scene
         // adopts the real size as soon as the view is laid out, and `didChangeSize` rebuilds.
-        let scene = GameScene(size: CGSize(width: 874, height: 402))
+        var rng = SeededRandom(seed: UInt64(Date().timeIntervalSince1970))
+        let chosen = NationCatalog.all[0]
+        let lineup = [chosen] + NationCatalog.dealOpponents(count: 4, avoiding: chosen, rng: &rng)
+
+        let scene = GameScene(size: CGSize(width: 874, height: 402), lineup: lineup)
         scene.scaleMode = .resizeFill
         view.presentScene(scene)
         return view
