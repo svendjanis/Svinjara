@@ -9,22 +9,28 @@ improvement rather than plumbing.
 | **M0** | Scaffold | A1 | App boots on the simulator; docs and `project.yml` in place |
 | **M1** | Solver | A2, B1–B4, C1 | A ball can be fired into the circle and bounces forever, under test |
 | **M2** | Rules | C2–C4, D1–D5 | A scripted match reaches a winner headlessly |
-| **M3** | Render | F3, F4 | The match is visible and readable on the simulator |
-| **M4** | Input | F1, F2 | A human can score a goal with their thumbs |
-| **M5** | Bots | E1–E5 | Four bots make a real match of it; balance measured |
+| **M3** | Bots | E1–E5 | Four bots make a real match of it; balance measured |
+| **M4** | Render | F3, F4 | The match is visible and readable on the simulator |
+| **M5** | Input | F1, F2 | A human can score a goal with their thumbs |
 | **M6** | Shell | G1–G4 | Menu → nation select → match → results → rematch, all persisted |
 | **M7** | Polish | F5, H1–H3 | HUD, sound, juice, icon |
 
-**M2 is the interesting checkpoint** — at that point the entire game exists and can be played
-to completion by a test, with no pixels drawn. Everything from M3 on is presentation and
-opponents.
+**M3 is the interesting checkpoint** — at that point the entire game exists, plays itself to a
+finish, and has been balanced over hundreds of matches, with no pixels drawn at all. Everything
+from M4 on is presentation.
 
 ## Order rationale
 
-Rules before rendering because the rules are the risky part and a bug in the goal-crossing
-solver is far cheaper to find in a test than by watching a shot look wrong. Input before bots
-because a human needs to feel the kick before bot behaviour can be judged against it. Balance
-last among the gameplay work because it depends on everything else being final.
+Rules before anything visible, because the rules are the risky part and a bug in the goal
+solver is far cheaper to find in a test than by watching a shot look wrong.
+
+Bots before rendering, which is a correction to the original plan: rendering needs a match
+worth looking at, and the alternative was a throwaway demo controller written only to have
+something move on screen. Doing the AI first means the first thing ever drawn is a real,
+balanced match — and it keeps every headless system finished before any of it is entangled
+with a scene.
+
+Input after rendering because a thumb stick can only be judged against something you can see.
 
 ## Definition of done for a milestone
 

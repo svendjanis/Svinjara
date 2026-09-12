@@ -78,11 +78,11 @@ final class DeterminismTests: XCTestCase {
         XCTAssertEqual(bulk.state, piecewise.state)
     }
 
-    func testAScriptedMatchRunsToTheSameWinnerEveryTime() {
-        let results = (0..<3).map { _ -> Int? in
-            ScriptedMatch.playToCompletion()?.engine.state.winner
-        }
-        XCTAssertNotNil(results[0])
-        XCTAssertEqual(Set(results).count, 1, "same script, same winner: \(results)")
+    func testABotMatchRunsToTheSameWinnerEveryTime() {
+        let results = (0..<3).map { _ in BotMatch.play(seed: 21, capSeconds: 900) }
+        XCTAssertNotNil(results[0].winner)
+        XCTAssertEqual(Set(results.map(\.winner)).count, 1,
+                       "same seed, same winner: \(results.map(\.winner))")
+        XCTAssertEqual(Set(results.map(\.seconds)).count, 1)
     }
 }

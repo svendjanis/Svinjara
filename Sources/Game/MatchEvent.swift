@@ -17,6 +17,9 @@ enum MatchEvent: Equatable {
     /// `place` is the finishing position, so the first player out of five places 5th.
     case eliminated(player: Int, place: Int)
 
+    /// The ball went nowhere for too long and was returned to the centre spot.
+    case ballReset
+
     case resumed
     case finished(winner: Int)
 }

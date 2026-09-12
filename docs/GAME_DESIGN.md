@@ -99,9 +99,21 @@ by the type system, not by discipline.
 
 | | Reaction | Aim error σ | Dash appetite |
 |---|---|---|---|
-| Easy | 150 ms | 9° | low |
-| Normal | 90 ms | 5° | medium |
-| Hard | 45 ms | 2.5° | high |
+| Easy | 150 ms | 9° | 0.15 |
+| Normal | 90 ms | 5° | 0.30 |
+| Hard | 45 ms | 2.5° | 0.45 |
+
+**Reaction is perception lag**, not thinking frequency: a bot steers toward the ball as it was
+that long ago. The distinction is not academic. Modelled as "how often the bot reconsiders" it
+made higher difficulty *worse* — reconsidering more often catches more of the brief windows in
+which you happen to be nearest the ball, and in this game going for the ball is what loses you
+matches. Measured over 150 matches the fast tier finished 3.42nd on average against the slow
+tier's 2.63rd. As perception lag it degrades attacking and defending alike, and the tiers come
+out in the right order: hard 2.61st, easy 3.36th.
+
+That underlying tension is real and deliberate. **Only conceding counts**, so every second you
+spend attacking is a second your own mouth is unguarded, and the goal you score helps every
+survivor equally. Attacking is a risk you take to knock somebody out, never a free move.
 
 ## 9. Deliberately out of scope
 

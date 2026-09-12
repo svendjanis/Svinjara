@@ -16,9 +16,9 @@ struct Tuning: Equatable {
 
     // MARK: Arena
 
-    var pitchRadius: Double = 11.0
+    var pitchRadius: Double = 9.5
     /// Straight-line width of a goal mouth. Converted to an angular span by `ArenaGeometry`.
-    var goalMouthChord: Double = 2.4
+    var goalMouthChord: Double = 3.6
     var postRadius: Double = 0.12
     var goalCount: Int = 5
 
@@ -71,6 +71,11 @@ struct Tuning: Equatable {
 
     var concedesToElimination: Int = 6
     var celebrationDuration: Double = 1.2
+
+    /// If the ball has not travelled `stagnationRadius` from where it was `stagnationTimeout`
+    /// ago, it is returned to the centre spot. See `docs/RULES.md` §10.
+    var stagnationTimeout: Double = 7.0
+    var stagnationRadius: Double = 2.0
     /// Home spot distance from the centre, as a fraction of the pitch radius.
     var homeSpotFraction: Double = 0.55
 

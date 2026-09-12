@@ -136,30 +136,30 @@ something.
 
 ## Epic E — Bots
 
-### E1 · A bot can play at all — `todo`
+### E1 · A bot can play at all — `done`
 **As a player** I want opponents that chase, defend and shoot.
 - `BotBrain` returns a `PlayerInput` and has no other channel into the simulation.
 - States: Defend, Pursue, Attack, Recover, Stagger, with documented transitions.
 - Test: in a 60 s bot-only match at least one goal is scored and no bot stands still for 5 s.
 
-### E2 · Bots pick a victim sensibly — `todo`
+### E2 · Bots pick a victim sensibly — `done`
 **As a player** I want bots to punish whoever left their goal open, so leaving mine open matters.
 - `ShotEvaluator` ranks the four rival goals by openness, lane clearance and distance.
 - Tests: given an obviously open goal and an obviously guarded one, the open one is chosen; a
   goal behind a post-blocked lane is not chosen.
 
-### E3 · Bots defend — `todo`
+### E3 · Bots defend — `done`
 **As a player** I want bots to come home when threatened.
 - `ThreatModel` scores ball distance to own goal against closing speed; above threshold the bot
   takes a spot on the line between ball and mouth.
 - Test: a ball rolled at a bot's goal results in the bot positioned between ball and mouth.
 
-### E4 · Difficulty tiers — `todo`
+### E4 · Difficulty tiers — `done`
 **As a player** I want to choose how hard they are.
 - Easy/Normal/Hard differ only in reaction latency, aim σ and dash appetite.
 - Test: over 100 sim matches, Hard bots beat Easy bots substantially more than half the time.
 
-### E5 · Balance harness — `todo`
+### E5 · Balance harness — `done`
 **As a developer** I want to measure balance instead of guessing.
 - `BalanceSimTests` runs several hundred headless bot-only matches and reports match duration,
   goals per minute and the win spread.

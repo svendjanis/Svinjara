@@ -52,6 +52,11 @@ struct MatchState: Equatable {
     /// Players in the order they were knocked out. The first entry finished last.
     var eliminationOrder: [Int] = []
 
+    /// Where the ball was when the stagnation clock last restarted, and how long it has been
+    /// loitering within reach of it.
+    var stagnationAnchor: Vec2 = .zero
+    var stagnationTimer: Double = 0
+
     var alivePlayers: [PlayerState] { players.filter(\.isAlive) }
     var aliveCount: Int { players.reduce(0) { $0 + ($1.isAlive ? 1 : 0) } }
 

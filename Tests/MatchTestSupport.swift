@@ -26,71 +26,83 @@ enum MatchFixture {
     }
 }
 
-/// A crude "get behind it and blast it" controller, used to drive a whole match through legal
-/// play without waiting for the real AI. It speaks the same `PlayerInput` a human's thumbs do,
-/// so a match it drives is a real match.
-///
-/// It approaches the ball from the side away from its target goal, so that facing the goal
-/// also means facing the ball. Turning to aim from wherever you happen to be stood just walks
-/// you away from the ball, and the match never gets anywhere.
-struct TestStriker {
-    let index: Int
-    private var holding = false
+/// Builds an arbitrary match position, for testing the pieces of the AI that are pure
+/// functions of a situation.
+enum Position {
 
-    init(index: Int) { self.index = index }
-
-    mutating func input(state: MatchState, tuning: Tuning) -> PlayerInput {
-        let me = state.players[index]
-        guard me.isAlive, state.phase.isPlaying else {
-            holding = false
-            return .idle
+    static func make(tuning: Tuning = .default,
+                     ball: Vec2 = .zero,
+                     ballVelocity: Vec2 = .zero,
+                     players: [Int: Vec2] = [:]) -> MatchState {
+        let arena = ArenaGeometry(tuning: tuning)
+        let states = MatchFixture.nations.enumerated().map { index, nation in
+            PlayerState(index: index,
+                        nation: nation,
+                        appearance: AppearanceFactory.make(seed: UInt64(index)),
+                        body: PlayerBody(
+                            position: players[index]
+                                ?? arena.homeSpot(of: index, fraction: tuning.homeSpotFraction),
+                            velocity: .zero,
+                            facing: 0))
         }
-
-        let target = bestRivalGoal(state: state)
-        let toGoal = (state.arena.mouthCentre(of: target) - state.ball.position).normalized
-        let behindBall = state.ball.position - toGoal * (tuning.playerRadius + tuning.ballRadius)
-
-        if me.body.position.distance(to: behindBall) > 0.35 {
-            holding = true
-            return PlayerInput(move: (behindBall - me.body.position).normalized, kickHeld: true)
-        }
-
-        let aimed = Angles.separation(me.body.facing, toGoal.angle) < 0.25
-        let ready = aimed && KickResolver.canStrike(body: me.body, ball: state.ball, tuning: tuning)
-        let input = PlayerInput(move: toGoal, kickHeld: !ready, kickReleased: ready && holding)
-        holding = !ready
-        return input
-    }
-
-    /// The most exposed rival goal: near the ball, and poorly defended by its owner.
-    private func bestRivalGoal(state: MatchState) -> Int {
-        state.players.filter { $0.isAlive && $0.index != index }
-            .min { exposure($0, state) < exposure($1, state) }?.index
-            ?? ((index + 1) % state.players.count)
-    }
-
-    private func exposure(_ rival: PlayerState, _ state: MatchState) -> Double {
-        let mouth = state.arena.mouthCentre(of: rival.index)
-        return state.ball.position.distance(to: mouth) - rival.body.position.distance(to: mouth)
+        var state = MatchState(arena: arena, players: states)
+        state.ball = BallState(position: ball, velocity: ballVelocity)
+        return state
     }
 }
 
-/// Runs a full match under five strikers and returns the result, or nil if it never ended.
-enum ScriptedMatch {
+/// Plays a whole match under bots and reports what happened.
+enum BotMatch {
 
-    /// A typical scripted match finishes in about 22 000 steps; the cap is generous enough to
-    /// absorb a tuning change and tight enough to fail fast rather than hang the suite.
-    static func playToCompletion(tuning: Tuning = .default,
-                                 stepCap: Int = 400_000) -> (engine: MatchEngine, events: [MatchEvent])? {
+    struct Outcome {
+        let winner: Int?
+        let seconds: Double
+        let goals: Int
+        let events: [MatchEvent]
+        /// The final state, so the rules tests can inspect what the match left behind.
+        let state: MatchState
+
+        var finished: Bool { winner != nil }
+    }
+
+    static func play(seed: UInt64,
+                     difficulties: [BotDifficulty] = [BotDifficulty](repeating: .normal, count: 5),
+                     tuning: Tuning = .default,
+                     capSeconds: Double = 900,
+                     collectEvents: Bool = false) -> Outcome {
         var engine = MatchFixture.engine(tuning: tuning)
-        var strikers = (0..<5).map { TestStriker(index: $0) }
+        var brains = (0..<5).map { BotBrain(index: $0, difficulty: difficulties[$0], seed: seed) }
+        var goals = 0
         var events: [MatchEvent] = []
 
-        for _ in 0..<stepCap {
-            let inputs = (0..<5).map { strikers[$0].input(state: engine.state, tuning: tuning) }
-            events += engine.step(inputs: inputs)
-            if engine.state.isOver { return (engine, events) }
+        for _ in 0..<Int(capSeconds / tuning.fixedStep) {
+            let inputs = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
+            let stepEvents = engine.step(inputs: inputs)
+            for event in stepEvents where event.isConcede { goals += 1 }
+            if collectEvents { events += stepEvents }
+            if engine.state.isOver { break }
         }
-        return nil
+        return Outcome(winner: engine.state.winner, seconds: engine.state.elapsed,
+                       goals: goals, events: events, state: engine.state)
+    }
+
+    /// A finished match with its full event list, or a test failure if it never ended.
+    static func completed(seed: UInt64 = 21,
+                          tuning: Tuning = .default,
+                          file: StaticString = #filePath,
+                          line: UInt = #line) -> Outcome? {
+        let outcome = play(seed: seed, tuning: tuning, capSeconds: 900, collectEvents: true)
+        guard outcome.finished else {
+            XCTFail("bot match never reached a winner", file: file, line: line)
+            return nil
+        }
+        return outcome
+    }
+}
+
+extension MatchEvent {
+    var isConcede: Bool {
+        if case .conceded = self { return true }
+        return false
     }
 }

@@ -13,8 +13,8 @@ balance the bots over hundreds of matches instead of by feel.
 
 ## 2. Units
 
-SI throughout: metres, seconds, m/s, m/s². The pitch is 11 m in radius, a real centre circle is
-9.15 m, so the scale is honest and the numbers can be reasoned about physically. Conversion to
+SI throughout: metres, seconds, m/s, m/s². The pitch is 9.5 m in radius against a real centre
+circle's 9.15 m, so the scale is honest and the numbers can be reasoned about physically. Conversion to
 points happens once, in the renderer, via `Theme.pointsPerMetre` derived from the view size.
 
 ## 3. Integration
@@ -101,8 +101,8 @@ construct a variant without touching global state.
 ### Arena
 | | |
 |---|---|
-| Pitch radius | 11.0 m |
-| Goal mouth chord | 2.4 m |
+| Pitch radius | 9.5 m |
+| Goal mouth chord | 3.6 m |
 | Post radius | 0.12 m |
 | Goals | 5, at 72° spacing |
 
@@ -153,24 +153,39 @@ construct a variant without touching global state.
 | Concedes to elimination | 6 |
 | Celebration pause | 1.2 s |
 | Home spot radius | 0.55 R |
+| Stagnation timeout | 7 s |
+| Stagnation radius | 2 m |
 
 ## 7. How these were chosen
 
 Start from physical plausibility, then tune against the numbers that matter to the feel:
 
-- **Top speed 5.6 m/s vs ball 17 m/s.** A struck ball crosses the 22 m pitch in ~1.3 s; a
-  player crosses it in ~4 s. You cannot chase a shot down, only anticipate it. This ratio is
+- **Top speed 5.6 m/s vs ball 17 m/s.** A struck ball crosses the 19 m pitch in ~1.1 s; a
+  player crosses it in ~3.4 s. You cannot chase a shot down, only anticipate it. This ratio is
   the single biggest lever on how defensive the game feels.
 - **Damping 0.68/s.** A ball struck at full power still has ~7 m/s after 2 s, so it rattles
   around the circle rather than dying in the middle. Concrete, not grass.
-- **Mouth 2.4 m vs player 0.84 m across.** One body covers about a third of their own mouth,
+- **Mouth 3.6 m vs player 0.84 m across.** One body covers under a quarter of their own mouth,
   so standing still never makes a goal safe. Guarding requires reading the shot.
-- **Dash 9.5 m/s for 0.22 s** covers ~2 m — just enough to reach a shot aimed at the far post
+- **Dash 9.5 m/s for 0.22 s** covers ~2.1 m — just enough to reach a shot aimed at the far post
   of your own mouth, and not enough to cross the pitch with it.
-- **6 concedes** puts a full match at 24 goals. Scoring rate in the balance sim runs about
-  6–8 goals/minute across all five goals, which lands a match in the 3–5 minute window.
+- **6 concedes** puts a full match at 24 goals minimum.
 
-`BalanceSimTests` runs a few hundred bot-only matches and reports match length, goals per
-minute and the spread of winners. Any change to this table should be re-run against it, and
-a degenerate win distribution (one slot winning far more than a fifth of the time) is a bug in
-the AI or the geometry, not an acceptable outcome.
+### What the sweep actually said
+
+Radius and mouth width were swept together, 100 bot-only matches per cell. Mouth width dominates
+everything else: at 2.4 m the median match ran past 7 minutes and a fifth never finished at all;
+at 3.6 m it lands at 3.1 minutes. Radius mattered far less, and 9.5 m was chosen for the best
+win fairness rather than for pace.
+
+The shipping numbers, 150 matches at each difficulty, all of them finishing:
+
+| | median | p90 | goals/min | worst slot's win share |
+|---|---|---|---|---|
+| All easy | 220 s | 291 s | 7.7 | 1.10× fair |
+| All normal | 189 s | 246 s | 9.0 | 1.13× fair |
+| All hard | 186 s | 248 s | 9.3 | 1.47× fair |
+
+`BalanceSimTests` re-runs a smaller version of this. Any change to this table should be checked
+against it, and a degenerate win distribution — one slot winning far more than a fifth of the
+time — is a bug in the AI or the geometry, not an acceptable outcome.

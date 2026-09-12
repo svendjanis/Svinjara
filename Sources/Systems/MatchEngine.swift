@@ -86,7 +86,7 @@ struct MatchEngine {
                                            dt: dt, tuning: tuning)
         switch outcome {
         case .scored(let goal):
-            // 9. Rules. A goal ends the step — there is nothing left to simulate.
+            // Rules. A goal ends the step — there is nothing left to simulate.
             concede(goal: goal, events: &events)
             return events
         case .bounced:
@@ -97,14 +97,39 @@ struct MatchEngine {
             break
         }
 
-        // 8. Bodies against the ball, then kicks.
-        for index in state.players.indices where state.players[index].isAlive {
+        // 8. Stagnation. See `docs/RULES.md` §10 — this is what stops a ball pinned against
+        //    the line from holding the whole match up.
+        if enforceProgress(dt: dt) { events.append(.ballReset) }
+
+        // 9. Bodies against the ball, then kicks.
+        //
+        // Order matters, and index order is not neutral: each contact repositions the ball and
+        // overwrites the last one's velocity, so whoever is processed last gets the final say.
+        // Running 0…4 quietly handed that to player 4 every single step, and over a few hundred
+        // matches it showed up as slot 4 winning far more than its share and slot 0 — the
+        // human's slot — winning least.
+        //
+        // Furthest first, so the player actually nearest the ball has the last word. That is
+        // both index-neutral and the physically sensible reading of a contested ball.
+        let byDistance = state.players.indices
+            .filter { state.players[$0].isAlive }
+            .sorted { state.players[$0].body.position.distanceSquared(to: state.ball.position)
+                    > state.players[$1].body.position.distanceSquared(to: state.ball.position) }
+
+        for index in byDistance {
             KickResolver.resolveBodyContact(player: index,
                                             body: state.players[index].body,
                                             ball: &state.ball,
                                             tuning: tuning)
         }
-        for release in releases {
+
+        // Two players releasing on the same 1/120 s slice is rare, but when it happens the
+        // nearest one is the one who actually got a foot to it — not the one with the higher
+        // index.
+        if let release = releases.min(by: {
+            state.players[$0.player].body.position.distanceSquared(to: state.ball.position)
+                < state.players[$1.player].body.position.distanceSquared(to: state.ball.position)
+        }) {
             if let event = KickResolver.strike(player: release.player,
                                                body: state.players[release.player].body,
                                                charge: release.charge,
@@ -250,6 +275,35 @@ struct MatchEngine {
 
     // MARK: Rules
 
+    /// Returns the ball to the centre if it has gone nowhere for too long.
+    ///
+    /// A ball resting against the paint cannot be struck along the wall at all — the widest
+    /// kick available is 53° from the outward radial, because standing further round than that
+    /// would put you outside the pitch. Two players leaning on such a ball can hold it there
+    /// indefinitely, and in measured bot-only play roughly one match in six never reached a
+    /// winner because of it. A human can do exactly the same thing, deliberately or not.
+    ///
+    /// So progress is a rule rather than something the AI is asked to be clever enough to
+    /// avoid. It fires on the ball having travelled nowhere, not on nobody touching it, which
+    /// is the case that actually occurs: the ball in a stalemate is touched constantly.
+    private mutating func enforceProgress(dt: Double) -> Bool {
+        if state.ball.position.distance(to: state.stagnationAnchor) > tuning.stagnationRadius {
+            state.stagnationAnchor = state.ball.position
+            state.stagnationTimer = 0
+            return false
+        }
+
+        state.stagnationTimer += dt
+        guard state.stagnationTimer >= tuning.stagnationTimeout else { return false }
+
+        // Only the ball moves. Play is not stopped and nobody is repositioned — this is a
+        // nudge to get the game going again, not a restart.
+        state.ball = BallState()
+        state.stagnationAnchor = .zero
+        state.stagnationTimer = 0
+        return true
+    }
+
     private mutating func concede(goal: Int, events: inout [MatchEvent]) {
         let scorer = state.ball.lastTouchedBy
         state.players[goal].conceded += 1
@@ -278,6 +332,8 @@ struct MatchEngine {
     /// Puts everything back exactly where a kickoff starts, whatever happened before it.
     private mutating func resetForKickoff() {
         state.ball = BallState()
+        state.stagnationAnchor = .zero
+        state.stagnationTimer = 0
         for index in state.players.indices {
             state.players[index].charge = 0
             state.players[index].isCharging = false

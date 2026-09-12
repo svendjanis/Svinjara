@@ -90,3 +90,18 @@ Given the same seed and the same sequence of per-player input frames, a match pr
 identical result, step for step. Nothing in the simulation may read wall-clock time, system
 RNG, or frame duration — the engine steps at a fixed 1/120 s and all randomness comes from the
 seeded generator. `DeterminismTests` enforces this.
+
+## 10. Progress
+
+If the ball has not travelled more than **2 m** from where it was **7 seconds** ago, it is
+returned to the centre spot at rest. Nothing else changes: play does not stop, nobody is
+repositioned, nothing is recorded.
+
+This exists because a ball resting against the paint cannot be struck along the wall at all —
+the widest kick available is 53° from the outward radial, since standing any further round
+would put the striker outside the pitch. Two players leaning on such a ball can hold it there
+indefinitely, and in bot-only play roughly one match in six never reached a winner. A human can
+do the same thing, deliberately or not.
+
+The trigger is the ball having *gone nowhere*, not *nobody having touched it* — in a stalemate
+the ball is being touched constantly.
