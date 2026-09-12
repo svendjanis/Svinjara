@@ -27,8 +27,18 @@ while inside the angular span of a mouth belonging to a **live** player.
   and the angle is tested **at that point** — not before the step and not after it. A fast shot
   can travel further than a mouth is wide in one 1/120 s step, so testing the endpoints alone
   would let goals through the posts.
-- The owner of that mouth **concedes one**. There is no notion of who "scored" for the score
-  itself — only conceding is counted.
+- The owner of that mouth **concedes one**.
+- **The scorer takes one back off their own tally**, floored at zero. Not for an own goal.
+
+  This rule is why going forward is worth anything. Without it the game has a dominant
+  strategy — sit on your own line and wait — because only conceding counts, so every goal you
+  score helps all four rivals equally while your own mouth is unguarded. Measured over 150 bot
+  matches, the tier that attacked 37% of the time finished 3.42nd on average and the tier that
+  attacked 21% finished 2.63rd. With redemption the order is right way up: 2.55 against 3.47.
+
+  **The floor at zero is load-bearing.** Without it every goal moves exactly one mark from the
+  scorer to the conceder, the total across all five players never grows, and nobody is ever
+  eliminated — the match cannot end.
 - **Own goals count.** Putting it through your own mouth concedes exactly as if a rival did it.
 - The last player to touch the ball is recorded for the announcement line only ("Brazil beats
   Croatia"), and has no rules effect.
@@ -71,12 +81,17 @@ while inside the angular span of a mouth belonging to a **live** player.
 ## 7. Ball possession and the kick
 
 - There is no possession flag. The ball is simply near your feet or it is not.
-- A kick is legal when the ball centre lies within `playerRadius + ballRadius + 0.35 m` and
-  within **±60°** of the kicker's facing.
-- Kick power scales linearly with charge time, capped at 0.55 s. **Every legal release is a
-  shot**: a bare tap leaves at 8.5 m/s, a full charge at 17 m/s.
-- A shot may be **snapped onto an open mouth within 25°** of the striker's facing, when the
-  input asks for it. Never onto the striker's own goal, and never onto a sealed one. This is an
+- A kick is legal when the ball centre lies within `playerRadius + ballRadius + 0.50 m` and
+  within **±75°** of the kicker's facing. Both are generous on purpose: a thumb steers the
+  facing, and nobody can hold a heading to the degree while four people are barging them.
+- A kick may either carry an **explicit power** or be struck at whatever **charge** has
+  accumulated. The thumbs supply an explicit full power, because shooting is a tap and there is
+  nothing to hold; bots charge, which is how they vary power by range.
+- Charge, when used, scales linearly up to 0.55 s: 8.5 m/s at nothing held, 17 m/s at full.
+- A shot may be **snapped onto an open mouth within 40°** of the striker's facing, when the
+  input asks for it. The goals are 72° apart, so most headings are within reach of some mouth —
+  but your own is excluded, which means clearing away from your own line is never quietly bent
+  into a shot at somebody sideways. Never onto the striker's own goal, and never onto a sealed one. This is an
   aid for thumbs — a bot aims precisely and has no reason to request it — and it travels
   through the same input struct as everything else.
 - The ball's existing velocity is **replaced**, not added to, along the kick direction. Kicking

@@ -40,7 +40,7 @@ struct TouchController {
     private(set) var stickPoint: Vec2?
 
     private var holders: [Int: Grabbed] = [:]
-    private var pendingRelease = false
+    private var pendingShot = false
     private var pendingTackle = false
 
     var isShootDown: Bool { holders.values.contains(.shoot) }
@@ -59,6 +59,10 @@ struct TouchController {
         case .shoot:
             guard !isShootDown else { return }
             holders[id] = .shoot
+            // Fires on the way down, like tackle. Shooting used to be hold-to-charge, which
+            // meant the button did nothing at the moment you pressed it — and a game where
+            // you are being barged by four people is no place to be holding a meter.
+            pendingShot = true
 
         case .tackle:
             guard !isTackleDown else { return }
@@ -80,14 +84,9 @@ struct TouchController {
 
     mutating func touchUp(id: Int) {
         guard let grabbed = holders.removeValue(forKey: id) else { return }
-        switch grabbed {
-        case .stick:
+        if grabbed == .stick {
             stickOrigin = nil
             stickPoint = nil
-        case .shoot:
-            pendingRelease = true
-        case .tackle:
-            break
         }
     }
 
@@ -95,7 +94,7 @@ struct TouchController {
         holders.removeAll()
         stickOrigin = nil
         stickPoint = nil
-        pendingRelease = false
+        pendingShot = false
         pendingTackle = false
     }
 
@@ -116,11 +115,12 @@ struct TouchController {
     /// delivered to exactly one simulation step however many frames the finger was down.
     mutating func consume() -> PlayerInput {
         let input = PlayerInput(move: move(),
-                                kickHeld: isShootDown,
-                                kickReleased: pendingRelease,
+                                kickHeld: false,
+                                kickReleased: pendingShot,
+                                kickPower: pendingShot ? 1 : nil,
                                 dashRequested: pendingTackle,
                                 aimAssist: true)
-        pendingRelease = false
+        pendingShot = false
         pendingTackle = false
         return input
     }

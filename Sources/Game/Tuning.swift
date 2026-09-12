@@ -18,7 +18,7 @@ struct Tuning: Equatable {
 
     var pitchRadius: Double = 9.5
     /// Straight-line width of a goal mouth. Converted to an angular span by `ArenaGeometry`.
-    var goalMouthChord: Double = 3.6
+    var goalMouthChord: Double = 4.4
     var postRadius: Double = 0.12
     var goalCount: Int = 5
 
@@ -51,8 +51,10 @@ struct Tuning: Equatable {
     var kickMinSpeed: Double = 8.5
     var kickMaxSpeed: Double = 17.0
     /// Added to the two radii to give the distance at which the ball is "at your feet".
-    var kickReachPadding: Double = 0.35
-    var kickArc: Double = 60 * .pi / 180
+    var kickReachPadding: Double = 0.50
+    /// Generous, because a thumb steers the facing and a person cannot hold a heading to the
+    /// degree while also being barged by four other people.
+    var kickArc: Double = 75 * .pi / 180
 
     /// How far off a goal mouth a shot may be and still be snapped onto it.
     ///
@@ -60,7 +62,7 @@ struct Tuning: Equatable {
     /// goal up is to run at it — which means chasing the ball toward the target rather than
     /// choosing one. Requested per-input, so it is an aid to the thumbs rather than a change
     /// to the rules.
-    var aimAssistAngle: Double = 25 * .pi / 180
+    var aimAssistAngle: Double = 40 * .pi / 180
 
     /// The fraction of your closing speed the ball takes when you run into it.
     ///
@@ -82,6 +84,19 @@ struct Tuning: Equatable {
     // MARK: Match
 
     var concedesToElimination: Int = 6
+
+    /// Scoring takes one back off your own tally, floored at zero.
+    ///
+    /// This exists because the game as first specified had a dominant strategy: sit on your own
+    /// line and wait. Only conceding counts, so every goal you score helps all four rivals
+    /// equally while your own mouth is unguarded — measured over 150 bot matches, the tier that
+    /// attacked 37% of the time finished 3.42nd on average and the tier that attacked 21%
+    /// finished 2.63rd. Being able to claw one back is what makes going forward worth the risk.
+    ///
+    /// The floor at zero is load-bearing, not a detail. Without it every goal moves exactly one
+    /// mark from the scorer to the conceder, the total across all five players never grows, and
+    /// nobody is ever eliminated.
+    var redemptionForScoring: Bool = true
     var celebrationDuration: Double = 1.2
 
     /// If the ball has not travelled `stagnationRadius` from where it was `stagnationTimeout`

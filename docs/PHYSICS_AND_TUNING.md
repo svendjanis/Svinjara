@@ -102,7 +102,7 @@ construct a variant without touching global state.
 | | |
 |---|---|
 | Pitch radius | 9.5 m |
-| Goal mouth chord | 3.6 m |
+| Goal mouth chord | 4.4 m |
 | Post radius | 0.12 m |
 | Goals | 5, at 72° spacing |
 
@@ -132,9 +132,9 @@ construct a variant without touching global state.
 | Charge time to full | 0.55 s |
 | Speed at min charge (a bare tap) | 8.5 m/s |
 | Speed at full charge | 17 m/s |
-| Reach | radii + 0.35 m |
-| Arc | ±60° of facing |
-| Aim assist window | ±25° |
+| Reach | radii + 0.50 m |
+| Arc | ±75° of facing |
+| Aim assist window | ±40° |
 | Dribble grip | 0.78 of your closing speed |
 
 ### Tackle (the dash)
@@ -150,6 +150,7 @@ construct a variant without touching global state.
 | | |
 |---|---|
 | Concedes to elimination | 6 |
+| Scoring redeems one (floored at 0) | yes |
 | Celebration pause | 1.2 s |
 | Home spot radius | 0.88 R |
 | Stagnation timeout | 7 s |
@@ -164,7 +165,7 @@ Start from physical plausibility, then tune against the numbers that matter to t
   the single biggest lever on how defensive the game feels.
 - **Damping 0.68/s.** A ball struck at full power still has ~7 m/s after 2 s, so it rattles
   around the circle rather than dying in the middle. Concrete, not grass.
-- **Mouth 3.6 m vs player 0.84 m across.** One body covers under a quarter of their own mouth,
+- **Mouth 4.4 m vs player 0.84 m across.** One body covers under a quarter of their own mouth,
   so standing still never makes a goal safe. Guarding requires reading the shot.
 - **Dash 9.5 m/s for 0.22 s** covers ~2.1 m — just enough to reach a shot aimed at the far post
   of your own mouth, and not enough to cross the pitch with it.
@@ -175,20 +176,38 @@ Start from physical plausibility, then tune against the numbers that matter to t
   effectively a scripted goal — the gap from restart to goal collapses onto a single value
   around 2.2 s — and above it a real scramble opens up (p10 2.4 s, median 5.4 s).
 
-### What the sweep actually said
+### What the sweeps actually said
 
-Radius and mouth width were swept together, 100 bot-only matches per cell. Mouth width dominates
-everything else: at 2.4 m the median match ran past 7 minutes and a fifth never finished at all;
-at 3.6 m it lands at 3.1 minutes. Radius mattered far less, and 9.5 m was chosen for the best
-win fairness rather than for pace.
+**Mouth width dominates everything else.** Radius and mouth were swept together, 100 bot-only
+matches per cell: at 2.4 m the median match ran past 7 minutes and a fifth never finished at
+all. Radius mattered far less, and 9.5 m was chosen for the best win fairness rather than for
+pace.
 
-The shipping numbers, 150 matches at each difficulty, all of them finishing:
+**Redemption lengthens matches, and the mouth is what pays for it.** Letting a scorer wipe one
+mark off their own tally slows the rate at which tallies grow, so the same pitch that gave a
+3.5-minute median gave a 5.5-minute one once the rule was in. Widening the mouth from 3.6 m to
+4.4 m pulled it back, at 200 matches per cell:
 
-| | median | p90 | goals/min | worst slot's win share |
+| mouth | median | p90 | goals/min | worst slot's win share |
 |---|---|---|---|---|
-| All easy | 220 s | 291 s | 7.7 | 1.10× fair |
-| All normal | 189 s | 246 s | 9.0 | 1.13× fair |
-| All hard | 186 s | 248 s | 9.3 | 1.47× fair |
+| 3.6 m | 331 s | 430 s | 8.2 | 1.29× fair |
+| **4.4 m** | **285 s** | **384 s** | **10.4** | **1.18× fair** |
+| 4.8 m | 259 s | 337 s | 11.4 | 1.10× fair |
+
+4.8 m is marginally better on every number and was not taken: at 4.4 m each goal is 27° of the
+circle and the five together are 37% of it, and the brief says *little* goals.
+
+**Redemption also fixed the difficulty scale**, which is the stronger argument for it. Mean
+finishing place over 150 matches with the tiers rotated:
+
+| | without redemption | with it |
+|---|---|---|
+| Hard | 2.61 | **2.55** |
+| Normal | — | 2.97 |
+| Easy | 3.36 | **3.47** |
+
+Hard bots attack far more than easy ones, so the gap widening is the same thing as attacking
+starting to pay.
 
 `BalanceSimTests` re-runs a smaller version of this. Any change to this table should be checked
 against it, and a degenerate win distribution — one slot winning far more than a fifth of the

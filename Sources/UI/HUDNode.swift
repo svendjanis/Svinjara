@@ -139,6 +139,11 @@ final class HUDNode: SKNode {
         ]))
     }
 
+    /// Takes a standing banner back down after a beat.
+    func dismissAfter(_ seconds: TimeInterval) {
+        banner.run(.sequence([.wait(forDuration: seconds), .fadeOut(withDuration: 0.2)]))
+    }
+
     /// A banner that stays up, for the end of the match.
     func announce(text: String, colour: UIColor) {
         bannerLabel.text = text

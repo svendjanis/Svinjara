@@ -198,4 +198,61 @@ final class MatchEngineTests: XCTestCase {
                                      tuning.pitchRadius + 1e-6)
         }
     }
+
+    /// A tap has to produce a full-blooded shot, not the 0%-charge minimum — the thumbs hold
+    /// nothing down, so there is no charge for the engine to read.
+    func testAnExplicitPowerOverridesTheCharge() {
+        var engine = MatchFixture.engine()
+        var inputs = [PlayerInput](repeating: .idle, count: 5)
+
+        var struck: Double?
+        for _ in 0..<MatchFixture.steps(forSeconds: 8) {
+            let me = engine.state.players[0]
+            inputs[0] = PlayerInput(move: (engine.state.ball.position - me.body.position).normalized)
+
+            if KickResolver.canStrike(body: me.body, ball: engine.state.ball, tuning: tuning) {
+                inputs[0].kickReleased = true
+                inputs[0].kickPower = 1
+            }
+            for event in engine.step(inputs: inputs) {
+                if case .kicked(0, let power) = event { struck = power }
+            }
+            if struck != nil { break }
+        }
+        XCTAssertEqual(struck, 1, "a tap is a full-power shot without ever holding the button")
+        XCTAssertEqual(engine.state.ball.velocity.length, tuning.kickMaxSpeed, accuracy: 1e-6)
+    }
+
+    /// Without an explicit power the charge still decides, which is the path the bots use to
+    /// vary power by range.
+    func testWithoutAnExplicitPowerTheChargeStillDecides() {
+        var engine = MatchFixture.engine()
+        var inputs = [PlayerInput](repeating: .idle, count: 5)
+        let holdSteps = 24   // 0.2 s of a 0.55 s charge
+
+        // Walk up to the ball with the button untouched, so nothing has charged yet.
+        for _ in 0..<MatchFixture.steps(forSeconds: 8) {
+            let me = engine.state.players[0]
+            inputs[0] = PlayerInput(move: (engine.state.ball.position - me.body.position).normalized)
+            engine.step(inputs: inputs)
+            if KickResolver.canStrike(body: engine.state.players[0].body,
+                                      ball: engine.state.ball, tuning: tuning) { break }
+        }
+
+        // Now hold for a known time and let go, supplying no power of our own.
+        inputs[0].move = .zero
+        inputs[0].kickHeld = true
+        for _ in 0..<holdSteps { engine.step(inputs: inputs) }
+
+        inputs[0].kickHeld = false
+        inputs[0].kickReleased = true
+        var struck: Double?
+        for event in engine.step(inputs: inputs) {
+            if case .kicked(0, let power) = event { struck = power }
+        }
+
+        let expected = Double(holdSteps) * tuning.fixedStep / tuning.kickChargeTime
+        XCTAssertEqual(struck ?? -1, expected, accuracy: 0.05,
+                       "power came from the charge, not from a supplied value")
+    }
 }

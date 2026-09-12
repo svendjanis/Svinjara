@@ -12,8 +12,15 @@ struct PlayerInput: Equatable {
     /// True for every step the kick button is down. The engine accumulates the charge.
     var kickHeld: Bool = false
 
-    /// True on the single step the button came up.
+    /// True on the step the shot is taken.
     var kickReleased: Bool = false
+
+    /// Power for this shot, `0...1`, bypassing whatever charge has accumulated.
+    ///
+    /// The thumbs use this: shooting is a tap, so there is no charge to read. Bots leave it
+    /// nil and keep varying power by range, which is a thing they can judge and a thumb
+    /// cannot.
+    var kickPower: Double?
 
     /// True on the step a tackle is asked for.
     var dashRequested: Bool = false

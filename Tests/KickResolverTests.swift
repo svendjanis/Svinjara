@@ -171,13 +171,32 @@ final class KickResolverTests: XCTestCase {
         XCTAssertEqual(Angles.separation(aimed, trueBearing), 0, accuracy: 1e-9)
     }
 
-    func testAShotNowhereNearAMouthIsLeftAlone() {
-        let from = Vec2.zero
-        // Half way between two mouths is 36 degrees from each, well outside the window.
-        let between = Angles.normalize((arena.bearings[0] + arena.bearings[1]) / 2)
-        XCTAssertEqual(KickResolver.aim(facing: between, from: from, shooter: 0, assisted: true,
+    /// The assist window is 40° and the goals are 72° apart, so most headings are within reach
+    /// of *some* mouth. The ones that are not are the ones that matter: your own goal is
+    /// excluded, so hammering the ball away from your own line is never quietly turned into a
+    /// shot at somebody sideways.
+    func testClearingYourOwnLineIsNeverSnappedIntoAShot() {
+        let from = Vec2(angle: arena.bearings[0], length: 7)
+        // Facing straight at your own mouth: the nearest rival goal is far outside the window.
+        let ownward = arena.aimBearing(from: from, at: 0)
+
+        XCTAssertEqual(KickResolver.aim(facing: ownward, from: from, shooter: 0, assisted: true,
                                         arena: arena, tuning: tuning),
-                       between)
+                       ownward)
+    }
+
+    func testTheWindowIsRespected() {
+        let from = Vec2.zero
+        let target = arena.aimBearing(from: from, at: 2)
+
+        // Just inside the window snaps; a heading closer to a different mouth goes to that one
+        // instead, never to a goal further away than the window allows.
+        let aimed = KickResolver.aim(facing: target + tuning.aimAssistAngle * 0.9,
+                                     from: from, shooter: 0, assisted: true,
+                                     arena: arena, tuning: tuning)
+        let offset = Angles.separation(aimed, target + tuning.aimAssistAngle * 0.9)
+        XCTAssertLessThanOrEqual(offset, tuning.aimAssistAngle + 1e-9,
+                                 "a shot is never bent further than the window")
     }
 
     func testAssistNeverSnapsOntoYourOwnGoal() {

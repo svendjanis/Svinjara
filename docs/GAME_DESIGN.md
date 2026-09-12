@@ -34,10 +34,18 @@ as it goes.
 lining up a shot at someone else's goal, the right move is to leave them alone. Every player is
 constantly choosing between defending and joining the feeding frenzy.
 
-**The leader is the target.** A player on 0 conceded who parks in their own mouth is a boring
-opponent to shoot at. The shot evaluator that drives the bots ranks goals by *openness*, which
-means the moment you step off your line to attack, four opponents notice. Greed is punished
-about as often as it pays.
+**You cannot win by hiding.** Score, and one mark comes off your own tally — never below zero,
+and never for an own goal. This is the rule that makes the game a game. Without it there is a
+dominant strategy: park on your own line and wait, because only conceding counts and every goal
+you score helps all four rivals equally while your own mouth sits open. It is not a theoretical
+worry — measured over 150 bot matches, the tier that attacked more finished *worse*, 3.42nd on
+average against 2.63rd. Being able to claw one back is what puts the risk back on the right
+side of the ledger.
+
+**The leader is the target.** A player on 0 conceded who parks in their own mouth has nothing
+to gain from it and is a tempting thing to shoot at. The shot evaluator that drives the bots
+ranks goals by *openness*, so the moment you step off your line to attack, four opponents
+notice. Greed is punished about as often as it pays.
 
 **Everyone is a keeper and nobody has hands.** There is no goalkeeper role because there is no
 one else to be. You defend by standing in the way, and by the dash — a short lunge that saves
@@ -70,8 +78,7 @@ my goal" regardless of which slot the player drew.
 | Input | Action |
 |---|---|
 | Left thumb — floating joystick | Run. The figure turns toward travel, and that is also where you are aiming. |
-| **SHOOT** — tap | A shot, straight away, at the pace of a firm pass. |
-| **SHOOT** — hold | Charge. A power ring fills over 0.55 s; release for anything up to a rocket. |
+| **SHOOT** | A full-blooded shot, the instant your thumb lands. Nothing to hold, nothing to time. The button dims when the ball is not close enough to strike, which is the answer to "why did nothing happen?". |
 | **TACKLE** | A 0.22 s lunge. Reach the ball and you knock it loose; reach the player and you shove and stagger them. 1.6 s cooldown. |
 
 There is no pass button because there is nobody to pass to.

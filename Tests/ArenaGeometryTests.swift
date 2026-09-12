@@ -34,8 +34,12 @@ final class ArenaGeometryTests: XCTestCase {
         let spacing = Angles.tau / Double(arena.goalCount)
         XCTAssertLessThan(2 * arena.mouthHalfAngle, spacing)
 
+        // Each goal is about 27° of the circle and the five together are about 37% of it, so
+        // the pitch is still mostly wall — less so than it was, which is what pulled match
+        // length back into the target band once scoring started wiping marks off tallies.
         let totalMouthArc = Double(arena.goalCount) * 2 * arena.mouthHalfAngle
-        XCTAssertLessThan(totalMouthArc, Angles.tau / 3)
+        XCTAssertLessThan(totalMouthArc / Angles.tau, 0.45, "the pitch must stay mostly wall")
+        XCTAssertGreaterThan(totalMouthArc / Angles.tau, 0.25, "and the goals worth defending")
     }
 
     func testBearingsResolveToTheRightGoalOrToWall() {

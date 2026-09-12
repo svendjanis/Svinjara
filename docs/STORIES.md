@@ -70,14 +70,15 @@ reproducible.
 - Facing turns toward travel at a limited rate rather than snapping.
 - Tests: reaches 99% of top speed within the documented time; stops within the documented time.
 
-### C2 · Kick with charge — `done`
-**As a player** I want to hold to hit it harder, so I can choose between a firm pass and a rocket.
-- Charge accumulates while held, caps at 0.55 s; release strikes along facing.
-- Every legal release is a shot — a bare tap leaves at 8.5 m/s. There is no soft touch.
-- Legal only within reach and ±60°; an illegal kick consumes the charge and does nothing.
+### C2 · Shooting — `done`
+**As a player** I want to shoot by tapping, and to know when a shot is even available.
+- A kick carries either an explicit power or whatever charge has accumulated. The thumbs send
+  full power on the tap; bots charge, which is how they vary power by range.
+- Legal only within reach and ±75°; an illegal kick consumes the charge and does nothing.
 - Ball velocity is replaced, not added to.
-- Tests: power at 0%/50%/100% charge; a tap is a real shot; out-of-arc kick leaves the ball
-  untouched; a ball moving toward the kicker does not gain extra speed.
+- Tests: power at 0%/50%/100% charge; an explicit power overrides the charge and a charge still
+  decides when none is given; out-of-arc kick leaves the ball untouched; a ball moving toward
+  the kicker does not gain extra speed.
 
 ### C3 · Dribble — `done`
 **As a player** I want the ball to stay near my feet when I run with it, so I can carry it.
@@ -123,6 +124,14 @@ reproducible.
 - Arena radius and every other goal's position are unchanged.
 - Tests: the 6th concede eliminates; a ball fired at the sealed arc rebounds; survivors' counts
   and positions untouched.
+
+### D6 · Scoring redeems a mark — `done`
+**As a player** I want going forward to be worth the risk, so sitting on my own line is not the
+winning move.
+- A goal takes one off the scorer's own tally, floored at zero, never for an own goal.
+- Tests: the running total still grows (without the floor it cannot, and no match ever ends);
+  nobody drops below zero; an own goal never redeems; the rule can be switched off, which is
+  what the balance harness uses to measure what it is worth.
 
 ### D4 · Winning — `done`
 **As a player** I want the match to end when I am the last one standing.
@@ -183,10 +192,10 @@ something.
 
 ### F2 · Shoot and tackle buttons — `done`
 **As a player** I want to shoot and to win the ball back, without fighting the controls.
-- Two buttons on the right: SHOOT with a ring that fills over the charge time, and TACKLE
-  which dims while on cooldown.
-- Tap SHOOT for a shot at once; hold for power. A shot within 25° of an open mouth snaps
-  onto it, never onto your own and never onto a bricked-up one.
+- Two buttons on the right: SHOOT, and TACKLE which dims while on cooldown.
+- SHOOT fires on the tap, at full power, and dims when the ball is not close enough to strike.
+  A shot within 40° of an open mouth snaps onto it, never onto your own and never onto a
+  bricked-up one.
 - Buttons hit-test larger than they are drawn, and a thumb that slides off one is still
   pressing it.
 - Tackle is its own button, not a hidden double-tap of shoot — which used to mean the second

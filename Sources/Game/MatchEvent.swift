@@ -15,6 +15,9 @@ enum MatchEvent: Equatable {
     /// last player to touch it, for the announcement line only.
     case conceded(goal: Int, scorer: Int?, ownGoal: Bool)
 
+    /// The scorer took one back off their own tally. See `docs/RULES.md` §3.
+    case redeemed(player: Int)
+
     /// `place` is the finishing position, so the first player out of five places 5th.
     case eliminated(player: Int, place: Int)
 

@@ -190,7 +190,11 @@ struct MatchEngine {
             player.isCharging = true
         }
         if input.kickReleased {
-            releases.append((player: index, charge: player.charge, assisted: input.aimAssist))
+            // An explicit power overrides the charge entirely — the thumbs tap rather than
+            // hold, so there is no charge for them to have built.
+            let power = input.kickPower.map { min(1, max(0, $0)) * tuning.kickChargeTime }
+            releases.append((player: index, charge: power ?? player.charge,
+                             assisted: input.aimAssist))
             player.charge = 0
             player.isCharging = false
         }
@@ -314,6 +318,18 @@ struct MatchEngine {
         let scorer = state.ball.lastTouchedBy
         state.players[goal].conceded += 1
         events.append(.conceded(goal: goal, scorer: scorer, ownGoal: scorer == goal))
+
+        // Scoring takes one back off your own tally — the reason going forward is worth the
+        // risk at all. Not for an own goal, and never below zero: with no floor, every goal
+        // would move exactly one mark from scorer to conceder, the total across all five
+        // players would never grow, and nobody would ever be eliminated.
+        if tuning.redemptionForScoring,
+           let scorer, scorer != goal,
+           state.players[scorer].isAlive,
+           state.players[scorer].conceded > 0 {
+            state.players[scorer].conceded -= 1
+            events.append(.redeemed(player: scorer))
+        }
 
         if state.players[goal].conceded >= tuning.concedesToElimination {
             state.players[goal].isAlive = false

@@ -91,7 +91,7 @@ final class TouchControllerTests: XCTestCase {
         let input = touch.consume()
         XCTAssertEqual(input.move.length, 1, accuracy: 1e-9, "the stick is still fully pushed")
         XCTAssertEqual(input.move.angle, 0, accuracy: 1e-9, "and still pointing the same way")
-        XCTAssertTrue(input.kickHeld)
+        XCTAssertTrue(input.kickReleased, "and the shot still went")
     }
 
     func testLiftingTheKickThumbLeavesTheStickAlone() {
@@ -114,15 +114,42 @@ final class TouchControllerTests: XCTestCase {
 
     // MARK: Kicking
 
-    func testHoldingAndReleasingProducesExactlyOneRelease() {
+    /// Shooting fires on the way *down*, like tackle. It used to be hold-to-charge, which meant
+    /// the button did nothing at the moment you pressed it — and a game where four people are
+    /// barging you is no place to be holding a meter.
+    func testShootingFiresOnTheTapNotOnTheRelease() {
         var touch = controller()
         touch.touchDown(id: 2, at: shoot)
-        XCTAssertTrue(touch.consume().kickHeld)
-        XCTAssertTrue(touch.consume().kickHeld, "still held on later steps")
 
-        touch.touchUp(id: 2)
+        let input = touch.consume()
+        XCTAssertTrue(input.kickReleased, "the shot goes the instant the thumb lands")
+        XCTAssertEqual(input.kickPower, 1, "and at full power, since there is nothing to charge")
+        XCTAssertFalse(input.kickHeld)
+    }
+
+    func testAShotIsDeliveredToExactlyOneStep() {
+        var touch = controller()
+        touch.touchDown(id: 2, at: shoot)
         XCTAssertTrue(touch.consume().kickReleased)
-        XCTAssertFalse(touch.consume().kickReleased, "a release lands on exactly one step")
+        XCTAssertFalse(touch.consume().kickReleased, "a shot lands on exactly one step")
+        XCTAssertNil(touch.consume().kickPower)
+    }
+
+    func testLiftingTheShootThumbDoesNotFireASecondShot() {
+        var touch = controller()
+        touch.touchDown(id: 2, at: shoot)
+        _ = touch.consume()
+        touch.touchUp(id: 2)
+        XCTAssertFalse(touch.consume().kickReleased)
+    }
+
+    func testHoldingTheButtonDownDoesNotRepeat() {
+        var touch = controller()
+        touch.touchDown(id: 2, at: shoot)
+        XCTAssertTrue(touch.consume().kickReleased)
+        for _ in 0..<60 {
+            XCTAssertFalse(touch.consume().kickReleased, "a held thumb is one shot, not a stream")
+        }
     }
 
     func testTheTackleButtonAsksForALunge() {
@@ -149,11 +176,8 @@ final class TouchControllerTests: XCTestCase {
         touch.touchDown(id: 3, at: tackle)
 
         let both = touch.consume()
-        XCTAssertTrue(both.kickHeld, "still charging")
+        XCTAssertTrue(both.kickReleased, "shot away")
         XCTAssertTrue(both.dashRequested, "and tackling")
-
-        touch.touchUp(id: 2)
-        XCTAssertTrue(touch.consume().kickReleased)
     }
 
     /// A thumb that lands slightly off a button should still hit it, and a thumb that slides
@@ -161,18 +185,17 @@ final class TouchControllerTests: XCTestCase {
     func testButtonsAreForgiving() {
         var touch = controller()
         touch.touchDown(id: 2, at: shoot + Vec2(x: 50, y: 0))
-        XCTAssertTrue(touch.consume().kickHeld, "just outside the drawn edge still counts")
+        XCTAssertTrue(touch.consume().kickReleased, "just outside the drawn edge still counts")
 
         touch.touchMoved(id: 2, to: Vec2(x: 200, y: 300))
-        XCTAssertTrue(touch.consume().kickHeld, "sliding off does not cancel the shot")
-        XCTAssertNil(touch.stickOrigin, "and does not become a stick either")
+        XCTAssertNil(touch.stickOrigin, "and sliding off does not turn into a stick")
     }
 
     func testAThumbFarFromEitherButtonIsTheStick() {
         var touch = controller()
         touch.touchDown(id: 1, at: Vec2(x: 120, y: 120))
         XCTAssertEqual(touch.stickOrigin, Vec2(x: 120, y: 120))
-        XCTAssertFalse(touch.consume().kickHeld)
+        XCTAssertFalse(touch.consume().kickReleased)
     }
 
     /// Thumbs are aimed at the pitch, not at the buttons, so the assist is always requested.
@@ -227,12 +250,13 @@ final class TouchControllerTests: XCTestCase {
             let canKick = KickResolver.canStrike(body: me.body, ball: engine.state.ball, tuning: tuning)
             let lined = Angles.separation(me.body.facing, aim.angle) < 0.2
 
-            if canKick, lined, holding, me.chargeFraction(tuning: tuning) > 0.7 {
-                touch.touchUp(id: 2)
-                holding = false
-            } else if !holding {
+            // One tap, the way a person would do it.
+            if canKick, lined, !holding {
                 touch.touchDown(id: 2, at: shoot)
                 holding = true
+            } else if holding {
+                touch.touchUp(id: 2)
+                holding = false
             }
 
             var inputs = (0..<5).map { index -> PlayerInput in

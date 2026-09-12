@@ -245,8 +245,12 @@ final class GameScene: SKScene {
         }
 
         let human = engine.state.players[GameScene.humanIndex]
-        shootButton?.render(charge: CGFloat(human.chargeFraction(tuning: tuning)),
-                            pressed: touch.isShootDown)
+        // The button says whether a shot is actually on, which is the answer to "why didn't
+        // it do anything?" — far more use than a charge meter now that shooting is a tap.
+        let canShoot = human.isAlive
+            && !human.isStaggered
+            && KickResolver.canStrike(body: human.body, ball: engine.state.ball, tuning: tuning)
+        shootButton?.render(charge: 0, pressed: touch.isShootDown, ready: canShoot)
         tackleButton?.render(charge: 0,
                              pressed: touch.isTackleDown,
                              ready: human.dashCooldown <= 0 && !human.isStaggered)
@@ -319,6 +323,14 @@ final class GameScene: SKScene {
                               duration: tuning.celebrationDuration)
                 shake(strength: ownGoal ? 7 : 5)
                 _ = scorer
+
+            case .redeemed(let player):
+                hud?.update(players: engine.state.players)
+                sfx.play(.touch, volume: 0.9)
+                if player == GameScene.humanIndex {
+                    hud?.announce(text: "ONE BACK", colour: engine.state.players[player].nation.shirt.uiColor)
+                    hud?.dismissAfter(1.1)
+                }
 
             case .eliminated(let player, let place):
                 goalNodes[player].seal()

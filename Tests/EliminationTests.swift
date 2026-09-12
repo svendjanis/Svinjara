@@ -153,9 +153,15 @@ final class EliminationTests: XCTestCase {
     func testMatchLengthIsPlausible() {
         guard let match = played() else { return }
         let goals = match.events.filter(\.isConcede).count
+        let redemptions = match.events.filter { if case .redeemed = $0 { return true }; return false }.count
 
+        // Goals and tallies stopped being the same number when scoring began wiping marks
+        // off: the four players knocked out account for 24, and every redemption along the way
+        // means one more goal had to be scored to get there.
         XCTAssertGreaterThanOrEqual(goals, 24, "four players out at six each")
-        XCTAssertLessThanOrEqual(goals, 24 + tuning.concedesToElimination - 1)
+        XCTAssertEqual(goals - redemptions,
+                       match.state.players.reduce(0) { $0 + $1.conceded },
+                       "every goal is either a mark added or a mark taken back")
         XCTAssertGreaterThan(match.seconds, 30, "a match is not over in a blink")
     }
 }
