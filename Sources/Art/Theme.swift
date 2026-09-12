@@ -23,8 +23,27 @@ enum Theme {
 
     // MARK: Layout
 
-    /// How much of the view's shorter edge the pitch occupies. The game is landscape, so the
-    /// shorter edge is the height: the circle fits it and the margins left and right carry the
+    /// How far the camera is tilted off vertical. Straight down is 0.
+    ///
+    /// 35° is a deliberate compromise: enough that the pitch reads as a surface receding away
+    /// from you and figures read as standing on it, little enough that the whole circle and all
+    /// five goals stay legible at once — which is the thing the entire design rests on.
+    ///
+    /// 25° was tried first and is not worth having: it compresses the circle to a 0.91 aspect,
+    /// which the eye simply reads as a circle. It also wastes the landscape width, since the
+    /// pitch is height-bound — a steeper tilt shortens it and lets the whole thing be drawn
+    /// larger.
+    static let tilt: CGFloat = 35 * .pi / 180
+
+    /// How far a figure floats above its own shadow, in metres. This gap is the only thing
+    /// saying a player is standing rather than painted on the concrete.
+    static let figureLift: Double = 1.0
+
+    /// Post height in metres. Little goals, so little posts.
+    static let postHeight: Double = 1.0
+
+    /// How much of the view the pitch occupies. The game is landscape, so the binding
+    /// constraint is the height: the circle fits it and the margins left and right carry the
     /// thumbs, which is the whole reason for landscape — controls beside the pitch, not on it.
     static let pitchScreenFraction: CGFloat = 0.92
 
@@ -37,9 +56,15 @@ enum Theme {
     static let figureScale: CGFloat = 1.7
 
     /// Converts simulation metres to screen points for a given view size and pitch radius.
+    ///
+    /// The tilt compresses the pitch vertically, so it needs less height than width — but the
+    /// headroom it frees is spent on the HUD and on figures standing up, hence the tighter
+    /// vertical fraction.
     static func pointsPerMetre(viewSize: CGSize, pitchRadius: Double) -> CGFloat {
-        let shortEdge = min(viewSize.width, viewSize.height)
-        return shortEdge * pitchScreenFraction / CGFloat(pitchRadius * 2)
+        let diameter = CGFloat(pitchRadius * 2)
+        let byWidth = viewSize.width * pitchScreenFraction / diameter
+        let byHeight = viewSize.height * 0.86 / (diameter * cos(tilt))
+        return min(byWidth, byHeight)
     }
 
     // MARK: Z-order
@@ -48,8 +73,11 @@ enum Theme {
         case surface = 0
         case paintwork = 10
         case shadow = 20
-        case ball = 30
-        case player = 40
+        case player = 30
+        /// Above the figures on purpose. Depth sorting says a nearer body should cover the
+        /// ball, but losing track of the ball is the one thing the player cannot afford — and
+        /// at this scale a ball drawn over somebody's shoulder costs nothing.
+        case ball = 40
         case post = 50
         case effect = 60
         case hud = 100

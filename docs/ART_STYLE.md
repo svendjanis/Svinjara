@@ -11,7 +11,24 @@ The look is a concrete court seen from directly overhead on a bright day: flat, 
 high contrast, no gradients pretending to be 3D. Readability beats detail — at any moment the
 player must be able to tell five figures apart and find the ball instantly.
 
-## 2. Surface
+## 2. The camera
+
+Top-down, but tilted **35°** off vertical rather than looking straight down. Two consequences,
+and they are the whole of the effect: the ground compresses vertically by `cos(tilt)` so the
+circle is drawn as an ellipse, and anything with height projects upward by `sin(tilt)` so a
+post rises off its own base and a figure floats above its own shadow. That gap is what reads
+as standing up.
+
+25° was tried first and is not worth having — it compresses the circle to a 0.91 aspect, which
+the eye simply reads as a circle. The steeper angle also lets the pitch be drawn larger, since
+in landscape it is height-bound and the tilt is what shortens it.
+
+The simulation knows none of this. It is a flat 2D world and stays one; this is a change of
+viewpoint, not of physics, so no rule, collision or bot decision is affected by it. The far
+side of the surface is shaded down a little, which is the cheapest honest cue that it is
+further away.
+
+## 3. Surface
 
 Concrete is drawn once into a tile texture: a mid-grey base with per-pixel value noise, a few
 darker aggregate speckles, two or three hairline cracks, and a subtle large-scale blotch layer
@@ -28,7 +45,7 @@ that?*) and colour on the ground answers it without a label.
 A sealed goal is painted over: the arc becomes a dark brick-grey patch, visibly a repair rather
 than original surface, and its posts are gone.
 
-## 3. Figures
+## 4. Figures
 
 Seen from directly above, so the silhouette is shoulders and a head, not a face. Built from
 five drawn parts:
@@ -59,13 +76,13 @@ five drawn parts:
 nation's palette still get different hair and skin — they look like two people, not one sprite
 drawn twice.
 
-## 4. The ball
+## 5. The ball
 
-Classic white with black pentagon patches, ~22 cm across on an 11 m pitch, which is small. It
+Classic white with black pentagon patches, ~22 cm across on a 9.5 m pitch, which is small. It
 gets a hard drop shadow offset a few points and a short motion-scuff trail when travelling
 fast, which is what actually makes it findable in a scrap.
 
-## 5. Colour and state
+## 6. Colour and state
 
 | Element | Treatment |
 |---|---|
@@ -76,7 +93,7 @@ fast, which is what actually makes it findable in a scrap.
 | Staggered | Figure desaturates and wobbles for 0.4 s |
 | Eliminated | Figure fades out over 0.5 s and is gone; goal arc turns brick-grey |
 
-## 6. HUD
+## 7. HUD
 
 Landscape, so the pitch is a circle in the middle with a margin each side. Along the top: five
 chips, one per player, in goal order. Each shows the nation's kit colours
@@ -87,13 +104,13 @@ carry it, and the eye can read the whole standings in one glance without leaving
 Goal announcements are a single band across the middle for 1.2 s, in the conceding player's
 colour: *"CROATIA LETS ONE IN"*. Own goals get their own line.
 
-## 7. Typography
+## 8. Typography
 
 One typeface, the system rounded face, used at three sizes only. Menus are large and quiet;
 the HUD is small and never competes with the pitch. No drop shadows on text, no outlines, no
 skeuomorphic chrome.
 
-## 8. The 20 kits
+## 9. The 20 kits
 
 Brazil · Argentina · France · Germany · Spain · Italy · England · Portugal · Netherlands ·
 Belgium · Croatia · Uruguay · Mexico · USA · Japan · Morocco · Senegal · Serbia · Poland ·

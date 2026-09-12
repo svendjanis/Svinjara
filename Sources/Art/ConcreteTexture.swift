@@ -8,7 +8,7 @@ import UIKit
 /// comparing screenshots.
 enum ConcreteTexture {
 
-    static func make(size: CGSize, seed: UInt64 = 7) -> SKTexture {
+    static func make(size: CGSize, seed: UInt64 = 7, depthShading: Bool = true) -> SKTexture {
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = 2
         format.opaque = true
@@ -55,6 +55,21 @@ enum ConcreteTexture {
                 cg.setFillColor((rng.bool(chance: 0.6) ? Theme.concreteShadow : Theme.concreteHighlight)
                     .withAlphaComponent(CGFloat(rng.double(in: 0.25...0.6))).cgColor)
                 cg.fillEllipse(in: CGRect(x: point.x, y: point.y, width: radius * 2, height: radius * 2))
+            }
+
+            // The far side of a tilted surface catches less light and sits in more haze. It is
+            // a slight effect on purpose — overdone it reads as a spotlight in the middle of
+            // the court rather than as distance.
+            if depthShading, let shade = CGGradient(
+                colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                colors: [Theme.concreteShadow.withAlphaComponent(0.30).cgColor,
+                         Theme.concreteShadow.withAlphaComponent(0.0).cgColor,
+                         Theme.concreteHighlight.withAlphaComponent(0.10).cgColor] as CFArray,
+                locations: [0, 0.55, 1]) {
+                cg.drawLinearGradient(shade,
+                                      start: CGPoint(x: 0, y: 0),
+                                      end: CGPoint(x: 0, y: size.height),
+                                      options: [])
             }
 
             // A few hairline cracks wandering across the slab.

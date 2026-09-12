@@ -134,8 +134,13 @@ play. Every texture is drawn once with Core Graphics at load and cached in `ArtF
 concrete surface, the painted line, each nation's kit. There are no image assets in the bundle
 beyond the app icon.
 
-Node z-order, bottom to top: concrete → painted line and goal arcs → shadows → ball → players →
-posts (so a player behind a post is occluded by it) → HUD.
+Node z-order, bottom to top: concrete → painted line and goal arcs → shadows → players → ball →
+posts → HUD. Within a layer, nodes are sorted by world `y` so a nearer figure covers a further
+one.
+
+The ball sits **above** the figures, which is the one place that sorting is deliberately
+overruled: a nearer body ought to cover it, but losing track of the ball is the one thing the
+player cannot afford, and at this scale a ball drawn over somebody's shoulder costs nothing.
 
 ## 7. Persistence
 

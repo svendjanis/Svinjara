@@ -46,8 +46,7 @@ final class GameScene: SKScene {
     private var ballRoll: CGFloat = 0
     private var scuffCountdown = 0
 
-    private var pointsPerMetre: CGFloat = 1
-    private var pitchCentre: CGPoint = .zero
+    private var projection = Projection(centre: .zero, pointsPerMetre: 1, tilt: Theme.tilt)
 
     /// Player 0 is the human. Their input comes from thumbs; everyone else's from a brain.
     private var touch = TouchController()
@@ -111,40 +110,48 @@ final class GameScene: SKScene {
         goalNodes.removeAll()
         playerNodes.removeAll()
 
-        pointsPerMetre = Theme.pointsPerMetre(viewSize: size, pitchRadius: tuning.pitchRadius)
-        pitchCentre = CGPoint(x: size.width / 2, y: size.height / 2)
+        let pointsPerMetre = Theme.pointsPerMetre(viewSize: size, pitchRadius: tuning.pitchRadius)
+        // Nudged down a little: the tilt spends the top of the screen on figures standing up
+        // and on the HUD, so the pitch itself wants to sit lower than dead centre.
+        projection = Projection(centre: CGPoint(x: size.width / 2, y: size.height * 0.46),
+                                pointsPerMetre: pointsPerMetre,
+                                tilt: Theme.tilt)
 
         let lineWidth = max(1.5, CGFloat(0.08) * pointsPerMetre)
         world.addChild(ArenaNode(sceneSize: size,
-                           centre: pitchCentre,
-                           radius: CGFloat(tuning.pitchRadius) * pointsPerMetre,
-                           lineWidth: lineWidth))
+                                 projection: projection,
+                                 radius: tuning.pitchRadius,
+                                 lineWidth: lineWidth))
 
         for player in engine.state.players {
             let goal = GoalNode(goal: player.index,
                                 arena: engine.state.arena,
                                 colour: player.nation.shirt.uiColor,
-                                centre: pitchCentre,
-                                pointsPerMetre: pointsPerMetre,
+                                projection: projection,
                                 lineWidth: lineWidth)
             if !engine.state.arena.isOpen[player.index] { goal.seal() }
             goalNodes.append(goal)
             world.addChild(goal)
         }
 
-        let figureDiameter = CGFloat(tuning.playerRadius * 2) * pointsPerMetre * Theme.figureScale
+        let figureDiameter = projection.length(tuning.playerRadius * 2) * Theme.figureScale
         for player in engine.state.players where player.isAlive {
             let node = PlayerNode(texture: art.figure(nation: player.nation,
                                                       appearance: player.appearance,
                                                       diameter: figureDiameter),
                                   diameter: figureDiameter,
-                                  isHuman: player.index == 0)
+                                  footprint: projection.footprint(radius: tuning.playerRadius),
+                                  lift: projection.rise(Theme.figureLift),
+                                  isHuman: player.index == GameScene.humanIndex)
             playerNodes[player.index] = node
             world.addChild(node)
         }
 
-        let ballDiameter = max(6, CGFloat(tuning.ballRadius * 2) * pointsPerMetre * 2.2)
-        let ball = BallNode(texture: art.ball(diameter: ballDiameter), diameter: ballDiameter)
+        let ballDiameter = max(6, projection.length(tuning.ballRadius * 2) * 2.2)
+        let ball = BallNode(texture: art.ball(diameter: ballDiameter),
+                            diameter: ballDiameter,
+                            footprint: projection.footprint(radius: tuning.ballRadius * 1.7),
+                            lift: projection.rise(tuning.ballRadius * 1.6))
         ballNode = ball
         world.addChild(ball)
 
@@ -377,10 +384,12 @@ final class GameScene: SKScene {
             let before = previous.players[player.index].body
             let now = player.body
 
-            node.render(position: screen(lerp(before.position, now.position, blend)),
+            let ground = lerp(before.position, now.position, blend)
+            node.render(position: projection.point(ground),
                         facing: CGFloat(lerpAngle(before.facing, now.facing, blend)),
                         staggered: player.isStaggered,
-                        dashing: player.isDashing)
+                        dashing: player.isDashing,
+                        depth: projection.depth(ground, within: tuning.pitchRadius))
         }
 
         let ballBefore = previous.ball.position
@@ -391,13 +400,13 @@ final class GameScene: SKScene {
         if !snapNextFrame {
             ballRoll -= CGFloat(ballNow.distance(to: ballBefore) / tuning.ballRadius) * 0.35
         }
-        ballNode?.render(position: screen(drawn), roll: ballRoll)
+        ballNode?.render(position: projection.point(drawn), roll: ballRoll,
+                         depth: projection.depth(drawn, within: tuning.pitchRadius))
 
         scuffCountdown -= 1
         if !snapNextFrame, scuffCountdown <= 0, state.ball.velocity.length > 7 {
             scuffCountdown = 3
-            leaveScuff(at: screen(drawn),
-                       size: CGFloat(tuning.ballRadius) * pointsPerMetre * 1.1)
+            leaveScuff(at: drawn)
         }
     }
 
@@ -418,10 +427,11 @@ final class GameScene: SKScene {
         world.run(.sequence(steps), withKey: "shake")
     }
 
-    /// A scuff of the ball on concrete, left behind when it is really moving.
-    private func leaveScuff(at point: CGPoint, size: CGFloat) {
-        let scuff = SKShapeNode(circleOfRadius: size)
-        scuff.position = point
+    /// A scuff of the ball on concrete, left behind when it is really moving. It lies in the
+    /// ground plane, so it is squashed by the tilt like every other footprint.
+    private func leaveScuff(at ground: Vec2) {
+        let scuff = SKShapeNode(ellipseOf: projection.footprint(radius: tuning.ballRadius * 1.1))
+        scuff.position = projection.point(ground)
         scuff.fillColor = UIColor(white: 1, alpha: 0.14)
         scuff.strokeColor = .clear
         scuff.zPosition = Theme.Layer.paintwork.rawValue + 2
@@ -430,11 +440,6 @@ final class GameScene: SKScene {
             .group([.fadeOut(withDuration: 0.32), .scale(to: 0.4, duration: 0.32)]),
             .removeFromParent(),
         ]))
-    }
-
-    private func screen(_ point: Vec2) -> CGPoint {
-        CGPoint(x: pitchCentre.x + CGFloat(point.x) * pointsPerMetre,
-                y: pitchCentre.y + CGFloat(point.y) * pointsPerMetre)
     }
 
     private func lerp(_ a: Vec2, _ b: Vec2, _ t: CGFloat) -> Vec2 {
