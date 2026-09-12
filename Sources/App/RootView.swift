@@ -10,20 +10,28 @@ struct RootView: View {
             Theme.concreteBackdrop.ignoresSafeArea()
 
             switch model.screen {
-            case .menu, .nationSelect, .results:
-                // Screens arrive in M6. Until then the app boots straight into the pitch.
-                MatchPlaceholderView()
+            case .menu:
+                MenuView(model: model)
+
+            case .nationSelect:
+                NationSelectView(model: model)
+
             case .match:
-                MatchPlaceholderView()
+                GameViewRepresentable(lineup: model.lineup,
+                                      difficulty: model.difficulty,
+                                      seed: model.matchSeed,
+                                      onFinish: model.finish)
+                    .ignoresSafeArea()
+                    // A fresh scene per match: nothing can survive from one into the next.
+                    .id(model.matchSeed)
+
+            case .results:
+                if let summary = model.summary {
+                    ResultsView(model: model, summary: summary)
+                } else {
+                    MenuView(model: model)
+                }
             }
         }
-    }
-}
-
-/// M0 stand-in: proves the SwiftUI → SpriteKit bridge boots and the arena maths draws.
-private struct MatchPlaceholderView: View {
-    var body: some View {
-        GameViewRepresentable()
-            .ignoresSafeArea()
     }
 }

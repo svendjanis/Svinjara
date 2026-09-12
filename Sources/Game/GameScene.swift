@@ -3,7 +3,7 @@ import SpriteKit
 /// Told when a match is over, so the SwiftUI layer can show the results. The scene knows
 /// nothing about SwiftUI beyond this one method.
 protocol GameSceneDelegate: AnyObject {
-    func gameScene(_ scene: GameScene, didFinishWith standings: [Int])
+    func gameScene(_ scene: GameScene, didFinishWith summary: MatchSummary)
 }
 
 /// Owns the match: steps the simulation on a fixed clock and draws whatever the resulting
@@ -239,7 +239,16 @@ final class GameScene: SKScene {
                 snapNextFrame = true
 
             case .finished:
-                matchDelegate?.gameScene(self, didFinishWith: engine.state.standings)
+                // A short beat before the results appear, so the last goal is seen rather
+                // than swallowed by a screen change.
+                let summary = MatchSummary(state: engine.state)
+                run(.sequence([
+                    .wait(forDuration: 1.4),
+                    .run { [weak self] in
+                        guard let self else { return }
+                        self.matchDelegate?.gameScene(self, didFinishWith: summary)
+                    },
+                ]))
 
             default:
                 break

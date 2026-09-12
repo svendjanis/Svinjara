@@ -205,21 +205,21 @@ something.
 
 ## Epic G — Shell
 
-### G1 · Main menu — `todo`
+### G1 · Main menu — `done`
 Play, difficulty, sound, lifetime stats. Play goes to nation select.
 
-### G2 · Nation select — `todo`
+### G2 · Nation select — `done`
 **As a player** I want to pick who I am before kickoff.
 - Grid of 20, each showing its kit; selection previews the actual figure that will take the
   pitch.
 - The previous choice is preselected on return.
 - Bots are dealt distinct nations, never the player's, never a confusable clash.
 
-### G3 · Results — `todo`
+### G3 · Results — `done`
 Final standings 1st to 5th with kits and conceded counts, a rematch button that keeps the
 nation, and a button back to the menu.
 
-### G4 · Persistence — `todo`
+### G4 · Persistence — `done`
 - `LocalStore` behind a protocol over `UserDefaults`; last nation, difficulty, sound, lifetime
   stats.
 - Tests use an in-memory store and never touch real defaults.

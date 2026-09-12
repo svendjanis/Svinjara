@@ -55,18 +55,21 @@ and steppable at arbitrary speed.
 ```
 Sources/
   App/        SvinjaraApp, RootView, AppModel, GameViewRepresentable
-  Game/       MatchState, MatchPhase, MatchEvent, PlayerInput, Tuning,
-              Nation, NationCatalog, Appearance, GameScene
+  Game/       GameScene, MatchState, MatchEvent, MatchSummary, PlayerInput,
+              Tuning, Nation, Appearance
   Systems/    Vec2, SeededRandom, ArenaGeometry, CollisionSolver, BallPhysics,
               PlayerPhysics, KickResolver, GoalDetector, MatchEngine,
-              TouchInput, LocalStore
+              TouchController, LocalStore
   AI/         BotBrain, BotDifficulty, ThreatModel, ShotEvaluator, Steering
   Entities/   ArenaNode, GoalNode, PlayerNode, BallNode
-  Art/        Theme, ArtFactory, ConcreteTexture, KitPainter
-  UI/         MenuView, NationSelectView, ResultsView, SettingsView,
+  Art/        Theme, ArtFactory, ConcreteTexture, CourtPaint, KitPainter
+  UI/         MenuView, NationSelectView, ResultsView, KitSwatch,
               HUDNode, JoystickNode, KickButtonNode
 Tests/        one flat file per system
 ```
+
+There is no settings screen: difficulty, sound and the lifetime record live on the menu, which
+is the whole of what there is to set.
 
 ## 4. The simulation step
 
