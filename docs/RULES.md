@@ -61,6 +61,11 @@ while inside the angular span of a mouth belonging to a **live** player.
 - If the final concede eliminates the second-to-last player, the survivor wins immediately.
 - A player who reaches 6 wins nothing; finishing order is recorded (4th out = runner-up) purely
   for the results screen.
+- **The human's match ends the moment the human is out**, whoever else is still standing.
+  Being knocked out is not a reason to sit and watch four bots finish. The results show the
+  place they actually finished in, with the survivors ranked by how few they have let in as
+  the table stood. This is a presentation rule, not a simulation one: the engine is perfectly
+  capable of playing the match out, and does so in the balance harness.
 
 ## 7. Ball possession and the kick
 

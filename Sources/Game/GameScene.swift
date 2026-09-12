@@ -12,6 +12,9 @@ final class GameScene: SKScene {
 
     weak var matchDelegate: GameSceneDelegate?
 
+    /// Player 0 is always the human.
+    static let humanIndex = 0
+
     private let tuning: Tuning
     private let lineup: [Nation]
     private let difficulty: BotDifficulty
@@ -27,12 +30,21 @@ final class GameScene: SKScene {
     private var lastFrameTime: TimeInterval?
     /// Set after anything that teleports the world, so the next frame snaps instead of sliding.
     private var snapNextFrame = true
+    /// The match is over as far as the player is concerned — either somebody won, or the human
+    /// was knocked out. Nobody wants to sit and watch four bots finish without them.
+    private var presentationOver = false
 
     private let art = ArtFactory()
+    /// Everything on the pitch lives in here, so a goal can shake the world without shaking
+    /// the HUD along with it.
+    private let world = SKNode()
+    private var hud: HUDNode?
+    private let sfx: SFX
     private var goalNodes: [GoalNode] = []
     private var playerNodes: [Int: PlayerNode] = [:]
     private var ballNode: BallNode?
     private var ballRoll: CGFloat = 0
+    private var scuffCountdown = 0
 
     private var pointsPerMetre: CGFloat = 1
     private var pitchCentre: CGPoint = .zero
@@ -48,8 +60,10 @@ final class GameScene: SKScene {
          lineup: [Nation],
          difficulty: BotDifficulty = .normal,
          seed: UInt64 = 20_260_912,
+         soundEnabled: Bool = true,
          tuning: Tuning = .default) {
         self.tuning = tuning
+        self.sfx = SFX(enabled: soundEnabled)
         self.lineup = lineup
         self.difficulty = difficulty
         self.seed = seed
@@ -80,6 +94,9 @@ final class GameScene: SKScene {
 
     private func build() {
         removeAllChildren()
+        world.removeAllChildren()
+        world.position = .zero
+        addChild(world)
         goalNodes.removeAll()
         playerNodes.removeAll()
 
@@ -87,7 +104,7 @@ final class GameScene: SKScene {
         pitchCentre = CGPoint(x: size.width / 2, y: size.height / 2)
 
         let lineWidth = max(1.5, CGFloat(0.08) * pointsPerMetre)
-        addChild(ArenaNode(sceneSize: size,
+        world.addChild(ArenaNode(sceneSize: size,
                            centre: pitchCentre,
                            radius: CGFloat(tuning.pitchRadius) * pointsPerMetre,
                            lineWidth: lineWidth))
@@ -101,7 +118,7 @@ final class GameScene: SKScene {
                                 lineWidth: lineWidth)
             if !engine.state.arena.isOpen[player.index] { goal.seal() }
             goalNodes.append(goal)
-            addChild(goal)
+            world.addChild(goal)
         }
 
         let figureDiameter = CGFloat(tuning.playerRadius * 2) * pointsPerMetre * Theme.figureScale
@@ -112,13 +129,19 @@ final class GameScene: SKScene {
                                   diameter: figureDiameter,
                                   isHuman: player.index == 0)
             playerNodes[player.index] = node
-            addChild(node)
+            world.addChild(node)
         }
 
         let ballDiameter = max(6, CGFloat(tuning.ballRadius * 2) * pointsPerMetre * 2.2)
         let ball = BallNode(texture: art.ball(diameter: ballDiameter), diameter: ballDiameter)
         ballNode = ball
-        addChild(ball)
+        world.addChild(ball)
+
+        let panel = HUDNode(players: engine.state.players, sceneSize: size,
+                            limit: tuning.concedesToElimination)
+        panel.update(players: engine.state.players)
+        hud = panel
+        addChild(panel)
 
         buildControls()
 
@@ -151,7 +174,7 @@ final class GameScene: SKScene {
             return
         }
         lastFrameTime = currentTime
-        guard !engine.state.isOver else { return }
+        guard !engine.state.isOver, !presentationOver else { return }
 
         // Clamped: coming back from the background must not spiral into thousands of catch-up
         // steps, which would look like the match fast-forwarding without you.
@@ -167,7 +190,7 @@ final class GameScene: SKScene {
             inputs[0] = touch.consume()
             handle(engine.step(inputs: inputs))
             accumulator -= tuning.fixedStep
-            if engine.state.isOver { break }
+            if engine.state.isOver || presentationOver { break }
         }
 
         render(blend: snapNextFrame ? 1 : CGFloat(accumulator / tuning.fixedStep))
@@ -230,30 +253,87 @@ final class GameScene: SKScene {
     private func handle(_ events: [MatchEvent]) {
         for event in events {
             switch event {
-            case .eliminated(let player, _):
+            case .kicked(_, let power):
+                sfx.play(.kick, volume: Float(0.45 + 0.55 * power))
+
+            case .softTouch:
+                sfx.play(.touch, volume: 0.6)
+
+            case .dashed:
+                sfx.play(.dash, volume: 0.8)
+
+            case .shoved:
+                sfx.play(.touch, volume: 0.9)
+
+            case .ballHitPost(let speed):
+                sfx.play(.post, volume: Float(min(1, 0.35 + speed / 18)))
+
+            case .ballHitWall(let speed):
+                // Only the ones you would actually hear; a ball trickling into the paint
+                // should not click.
+                if speed > 3 { sfx.play(.wall, volume: Float(min(0.8, speed / 22))) }
+
+            case .conceded(let goal, let scorer, let ownGoal):
+                sfx.play(.goal)
+                hud?.update(players: engine.state.players)
+                hud?.announce(conceded: engine.state.players[goal],
+                              ownGoal: ownGoal,
+                              duration: tuning.celebrationDuration)
+                shake(strength: ownGoal ? 7 : 5)
+                _ = scorer
+
+            case .eliminated(let player, let place):
                 goalNodes[player].seal()
                 playerNodes[player]?.fadeOutEliminated()
                 playerNodes[player] = nil
+                hud?.update(players: engine.state.players)
+                hud?.announce(eliminated: engine.state.players[player])
+                sfx.play(.eliminated)
+
+                // The human going out ends the match. Watching four bots play on without you
+                // is not a reward for losing.
+                if player == GameScene.humanIndex, engine.state.aliveCount > 1 {
+                    finishPresentation(headline: "YOU ARE OUT", place: place)
+                }
 
             case .resumed, .ballReset:
                 snapNextFrame = true
+                if case .resumed = event { sfx.play(.whistle, volume: 0.5) }
 
             case .finished:
-                // A short beat before the results appear, so the last goal is seen rather
-                // than swallowed by a screen change.
-                let summary = MatchSummary(state: engine.state)
-                run(.sequence([
-                    .wait(forDuration: 1.4),
-                    .run { [weak self] in
-                        guard let self else { return }
-                        self.matchDelegate?.gameScene(self, didFinishWith: summary)
-                    },
-                ]))
+                if let winner = engine.state.winner {
+                    hud?.announce(winner: engine.state.players[winner])
+                }
+                sfx.play(.whistle)
+                finishPresentation(headline: nil, place: nil)
 
             default:
                 break
             }
         }
+    }
+
+    /// Hands the result to the app and stops simulating, after a beat so the last goal is
+    /// seen rather than swallowed by a screen change.
+    ///
+    /// `place` is supplied when the human was knocked out, because the standings alone cannot
+    /// say where they finished while several players are still in.
+    private func finishPresentation(headline: String?, place: Int?) {
+        guard !presentationOver else { return }
+        presentationOver = true
+
+        if let headline {
+            hud?.announce(text: headline, colour: Theme.sealed)
+        }
+
+        let summary = MatchSummary(state: engine.state, humanPlace: place)
+        run(.sequence([
+            .wait(forDuration: 1.6),
+            .run { [weak self] in
+                guard let self else { return }
+                self.matchDelegate?.gameScene(self, didFinishWith: summary)
+            },
+        ]))
     }
 
     // MARK: Drawing
@@ -281,6 +361,44 @@ final class GameScene: SKScene {
             ballRoll -= CGFloat(ballNow.distance(to: ballBefore) / tuning.ballRadius) * 0.35
         }
         ballNode?.render(position: screen(drawn), roll: ballRoll)
+
+        scuffCountdown -= 1
+        if !snapNextFrame, scuffCountdown <= 0, state.ball.velocity.length > 7 {
+            scuffCountdown = 3
+            leaveScuff(at: screen(drawn),
+                       size: CGFloat(tuning.ballRadius) * pointsPerMetre * 1.1)
+        }
+    }
+
+    /// A short, decaying nudge of the pitch. Deliberately small — anything bigger loses the
+    /// ball for a moment, which is the one thing the player cannot afford.
+    private func shake(strength: CGFloat) {
+        world.removeAction(forKey: "shake")
+        var steps: [SKAction] = []
+        var amount = strength
+        var rng = SeededRandom(seed: UInt64(engine.state.elapsed * 1000))
+        while amount > 0.4 {
+            steps.append(.move(to: CGPoint(x: CGFloat(rng.double(in: -1...1)) * amount,
+                                           y: CGFloat(rng.double(in: -1...1)) * amount),
+                               duration: 0.035))
+            amount *= 0.62
+        }
+        steps.append(.move(to: .zero, duration: 0.05))
+        world.run(.sequence(steps), withKey: "shake")
+    }
+
+    /// A scuff of the ball on concrete, left behind when it is really moving.
+    private func leaveScuff(at point: CGPoint, size: CGFloat) {
+        let scuff = SKShapeNode(circleOfRadius: size)
+        scuff.position = point
+        scuff.fillColor = UIColor(white: 1, alpha: 0.14)
+        scuff.strokeColor = .clear
+        scuff.zPosition = Theme.Layer.paintwork.rawValue + 2
+        world.addChild(scuff)
+        scuff.run(.sequence([
+            .group([.fadeOut(withDuration: 0.32), .scale(to: 0.4, duration: 0.32)]),
+            .removeFromParent(),
+        ]))
     }
 
     private func screen(_ point: Vec2) -> CGPoint {

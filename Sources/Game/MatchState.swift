@@ -70,10 +70,17 @@ struct MatchState: Equatable {
         return nil
     }
 
-    /// Final standings, best first. The winner, then the eliminated in reverse order of
+    /// Standings, best first: whoever is still in, then the eliminated in reverse order of
     /// leaving — the last one knocked out was the runner-up.
+    ///
+    /// Survivors are ranked by how few they have let in rather than by index, which matters
+    /// when the table is read before the match has run its course: the human's match ends the
+    /// moment *they* are out, and at that point there can still be several players standing.
     var standings: [Int] {
-        let survivors = players.filter(\.isAlive).map(\.index)
+        let survivors = players
+            .filter(\.isAlive)
+            .sorted { ($0.conceded, $0.index) < ($1.conceded, $1.index) }
+            .map(\.index)
         return survivors + eliminationOrder.reversed()
     }
 }

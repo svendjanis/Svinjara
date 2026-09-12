@@ -20,6 +20,7 @@ struct RootView: View {
                 GameViewRepresentable(lineup: model.lineup,
                                       difficulty: model.difficulty,
                                       seed: model.matchSeed,
+                                      soundEnabled: model.soundEnabled,
                                       onFinish: model.finish)
                     .ignoresSafeArea()
                     // A fresh scene per match: nothing can survive from one into the next.

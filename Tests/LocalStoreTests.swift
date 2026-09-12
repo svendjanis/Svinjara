@@ -165,3 +165,59 @@ final class LocalStoreTests: XCTestCase {
         return MatchSummary(entries: entries)
     }
 }
+
+/// The human's match ends when the human is out — see `docs/RULES.md` §6.
+final class EarlyExitTests: XCTestCase {
+
+    private let tuning = Tuning.default
+
+    /// Plays until player 0 is knocked out, which is the moment the app stops the match.
+    private func stateWhenHumanIsOut() -> (MatchState, Int)? {
+        var engine = MatchFixture.engine(tuning: tuning)
+        var brains = (0..<5).map { BotBrain(index: $0, difficulty: .normal, seed: 33) }
+
+        for _ in 0..<MatchFixture.steps(forSeconds: 900) {
+            let inputs = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
+            for event in engine.step(inputs: inputs) {
+                if case .eliminated(let player, let place) = event, player == 0 {
+                    return (engine.state, place)
+                }
+            }
+            if engine.state.isOver { return nil }
+        }
+        return nil
+    }
+
+    func testTheHumansPlaceIsHonouredWhileOthersAreStillIn() throws {
+        guard let (state, place) = stateWhenHumanIsOut() else {
+            throw XCTSkip("the human won this seed; nothing to check")
+        }
+        XCTAssertGreaterThan(state.aliveCount, 1, "several players are still standing")
+
+        let summary = MatchSummary(state: state, humanPlace: place)
+        XCTAssertEqual(summary.entries.count, 5)
+        XCTAssertEqual(summary.entries.map(\.place), [1, 2, 3, 4, 5])
+        XCTAssertEqual(Set(summary.entries.map(\.index)).count, 5)
+        XCTAssertEqual(summary.human?.place, place,
+                       "the human must be shown where they actually finished")
+    }
+
+    /// Survivors are ranked by how few they have let in, because at this point nobody has won
+    /// yet and index order would be meaningless.
+    func testSurvivorsAreRankedByGoalsAgainst() throws {
+        guard let (state, _) = stateWhenHumanIsOut() else {
+            throw XCTSkip("the human won this seed; nothing to check")
+        }
+        let survivors = state.standings.filter { state.players[$0].isAlive }
+        let conceded = survivors.map { state.players[$0].conceded }
+        XCTAssertEqual(conceded, conceded.sorted(), "best-placed survivor has let in fewest")
+    }
+
+    func testAFinishedMatchStillRanksTheWinnerFirst() {
+        let outcome = BotMatch.play(seed: 21, capSeconds: 900)
+        guard let winner = outcome.winner else { return XCTFail("match never finished") }
+        let summary = MatchSummary(state: outcome.state)
+        XCTAssertEqual(summary.winner?.index, winner)
+        XCTAssertEqual(summary.entries.map(\.place), [1, 2, 3, 4, 5])
+    }
+}

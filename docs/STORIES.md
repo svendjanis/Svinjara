@@ -196,7 +196,7 @@ something.
 - Test: `NationCatalog` has exactly 20 entries, unique names, and no two shirt colours within
   the minimum hue separation.
 
-### F5 · HUD — `todo`
+### F5 · HUD — `done`
 **As a player** I want to know everyone's tally without taking my eyes off the ball.
 - Five chips in goal order, six pips each, own chip emphasised, eliminated chips greyed.
 - Goal banner in the conceding player's colour for the celebration, with an own-goal variant.
@@ -229,13 +229,13 @@ nation, and a button back to the menu.
 
 ## Epic H — Polish
 
-### H1 · Sound — `todo`
+### H1 · Sound — `done`
 Kick, post clang, goal, whistle, elimination sting — synthesised, no audio assets. Respects the
 sound setting.
 
-### H2 · Juice — `todo`
+### H2 · Juice — `done`
 Screen shake on a goal, ball scuff trail at speed, elimination fade, dash streaks, stagger
 wobble. Nothing that obscures the ball.
 
-### H3 · App icon — `todo`
+### H3 · App icon — `done`
 Generated 1024² icon: the circle, five coloured arcs, a ball.

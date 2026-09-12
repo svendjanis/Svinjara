@@ -9,6 +9,7 @@ struct GameViewRepresentable: UIViewRepresentable {
     let lineup: [Nation]
     let difficulty: BotDifficulty
     let seed: UInt64
+    let soundEnabled: Bool
     let onFinish: (MatchSummary) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -28,7 +29,8 @@ struct GameViewRepresentable: UIViewRepresentable {
         let scene = GameScene(size: CGSize(width: 874, height: 402),
                               lineup: lineup,
                               difficulty: difficulty,
-                              seed: seed)
+                              seed: seed,
+                              soundEnabled: soundEnabled)
         scene.matchDelegate = context.coordinator
         scene.scaleMode = .resizeFill
         view.presentScene(scene)
