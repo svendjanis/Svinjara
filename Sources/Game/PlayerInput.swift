@@ -15,9 +15,16 @@ struct PlayerInput: Equatable {
     /// True on the single step the button came up.
     var kickReleased: Bool = false
 
-    /// True on the step a lunge is asked for. Double-tap detection belongs to the input layer,
-    /// not the engine — bots simply set this directly.
+    /// True on the step a tackle is asked for.
     var dashRequested: Bool = false
+
+    /// Ask for the shot to be snapped onto a nearby open mouth.
+    ///
+    /// This is why it lives in the input struct rather than in the rules: aiming to the degree
+    /// is something a bot can do and a thumb cannot, so the aid belongs to whoever is holding
+    /// the phone. Both still travel the same single code path into the engine — a bot is free
+    /// to ask for it and simply has no reason to.
+    var aimAssist: Bool = false
 
     static let idle = PlayerInput()
 

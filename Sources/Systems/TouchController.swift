@@ -2,9 +2,9 @@ import Foundation
 
 /// Turns raw touches into a `PlayerInput`.
 ///
-/// Deliberately free of UIKit and SpriteKit: the whole control scheme — the floating stick, the
-/// charge, the double-tap lunge — is then testable without a scene and without a finger, which
-/// is the only practical way to pin down behaviour like "a second thumb must not disturb the
+/// Deliberately free of UIKit and SpriteKit: the whole control scheme — the floating stick,
+/// the charge, the tackle — is then testable without a scene and without a finger, which is
+/// the only practical way to pin down behaviour like "a second thumb must not disturb the
 /// first one".
 struct TouchController {
 
@@ -13,8 +13,24 @@ struct TouchController {
         var stickRadius: Double = 52
         /// Movement under this is treated as holding still, not as a very slow walk.
         var deadZone: Double = 7
-        /// Two taps inside this window are a lunge rather than two kicks.
-        var doubleTapWindow: Double = 0.26
+
+        var shootCentre: Vec2 = .zero
+        var shootRadius: Double = 40
+        var tackleCentre: Vec2 = .zero
+        var tackleRadius: Double = 32
+
+        /// Buttons are hit-tested larger than they are drawn. A thumb does not land where its
+        /// owner thinks it did, and missing the shot button is far worse than the odd
+        /// generous hit.
+        var touchSlop: Double = 1.35
+    }
+
+    /// Which control a touch grabbed. Decided once, on touch-down, and held for the life of
+    /// that touch — a thumb that slides off the shoot button is still shooting.
+    private enum Grabbed {
+        case stick
+        case shoot
+        case tackle
     }
 
     var layout = Layout()
@@ -23,17 +39,12 @@ struct TouchController {
     private(set) var stickOrigin: Vec2?
     private(set) var stickPoint: Vec2?
 
-    private var stickTouch: Int?
-    private var kickTouch: Int?
-
-    /// The current press is the second of a double tap, so it lunges and must not also kick.
-    private var pressIsLunge = false
-    private var lastKickReleasedAt: Double?
-
+    private var holders: [Int: Grabbed] = [:]
     private var pendingRelease = false
-    private var pendingDash = false
+    private var pendingTackle = false
 
-    var isKickDown: Bool { kickTouch != nil }
+    var isShootDown: Bool { holders.values.contains(.shoot) }
+    var isTackleDown: Bool { holders.values.contains(.tackle) }
 
     /// `0...1`, for drawing the stick knob.
     var stickOffset: Vec2 {
@@ -43,66 +54,74 @@ struct TouchController {
 
     // MARK: Touches
 
-    mutating func touchDown(id: Int, at point: Vec2, onKickSide: Bool, now: Double) {
-        if onKickSide {
-            guard kickTouch == nil else { return }
-            kickTouch = id
-            if let last = lastKickReleasedAt, now - last <= layout.doubleTapWindow {
-                pressIsLunge = true
-                pendingDash = true
-            } else {
-                pressIsLunge = false
-            }
-        } else {
-            guard stickTouch == nil else { return }
-            stickTouch = id
+    mutating func touchDown(id: Int, at point: Vec2) {
+        switch zone(at: point) {
+        case .shoot:
+            guard !isShootDown else { return }
+            holders[id] = .shoot
+
+        case .tackle:
+            guard !isTackleDown else { return }
+            holders[id] = .tackle
+            pendingTackle = true
+
+        case .stick:
+            guard !holders.values.contains(.stick) else { return }
+            holders[id] = .stick
             stickOrigin = point
             stickPoint = point
         }
     }
 
     mutating func touchMoved(id: Int, to point: Vec2) {
-        guard id == stickTouch else { return }
+        guard holders[id] == .stick else { return }
         stickPoint = point
     }
 
-    mutating func touchUp(id: Int, now: Double) {
-        if id == stickTouch {
-            stickTouch = nil
+    mutating func touchUp(id: Int) {
+        guard let grabbed = holders.removeValue(forKey: id) else { return }
+        switch grabbed {
+        case .stick:
             stickOrigin = nil
             stickPoint = nil
-            return
+        case .shoot:
+            pendingRelease = true
+        case .tackle:
+            break
         }
-        guard id == kickTouch else { return }
-        kickTouch = nil
-        // The second tap of a double tap has already been spent on the lunge; letting it also
-        // kick would fire a shot nobody asked for every time you dived.
-        if !pressIsLunge { pendingRelease = true }
-        lastKickReleasedAt = now
-        pressIsLunge = false
     }
 
     mutating func cancelAll() {
-        stickTouch = nil
+        holders.removeAll()
         stickOrigin = nil
         stickPoint = nil
-        kickTouch = nil
-        pressIsLunge = false
         pendingRelease = false
-        pendingDash = false
+        pendingTackle = false
+    }
+
+    /// Buttons first, so a thumb landing on one is never mistaken for the stick.
+    private func zone(at point: Vec2) -> Grabbed {
+        if point.distance(to: layout.shootCentre) <= layout.shootRadius * layout.touchSlop {
+            return .shoot
+        }
+        if point.distance(to: layout.tackleCentre) <= layout.tackleRadius * layout.touchSlop {
+            return .tackle
+        }
+        return .stick
     }
 
     // MARK: Output
 
-    /// The input for this step. One-shot flags are cleared, so a release or a lunge is
+    /// The input for this step. One-shot flags are cleared, so a release or a tackle is
     /// delivered to exactly one simulation step however many frames the finger was down.
     mutating func consume() -> PlayerInput {
         let input = PlayerInput(move: move(),
-                                kickHeld: kickTouch != nil && !pressIsLunge,
+                                kickHeld: isShootDown,
                                 kickReleased: pendingRelease,
-                                dashRequested: pendingDash)
+                                dashRequested: pendingTackle,
+                                aimAssist: true)
         pendingRelease = false
-        pendingDash = false
+        pendingTackle = false
         return input
     }
 

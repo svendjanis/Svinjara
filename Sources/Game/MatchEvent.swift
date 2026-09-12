@@ -4,8 +4,9 @@ import Foundation
 /// returns these from every step; it never calls out to anything itself.
 enum MatchEvent: Equatable {
     case kicked(player: Int, power: Double)
-    case softTouch(player: Int)
     case dashed(player: Int)
+    /// A lunge that reached the ball and knocked it loose.
+    case tackled(player: Int)
     case shoved(by: Int, victim: Int)
     case ballHitWall(speed: Double)
     case ballHitPost(speed: Double)

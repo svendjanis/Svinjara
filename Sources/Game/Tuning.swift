@@ -47,18 +47,30 @@ struct Tuning: Equatable {
     // MARK: Kick
 
     var kickChargeTime: Double = 0.55
-    var kickMinSpeed: Double = 6.0
+    /// A bare tap still has to feel like a shot, not a nudge.
+    var kickMinSpeed: Double = 8.5
     var kickMaxSpeed: Double = 17.0
     /// Added to the two radii to give the distance at which the ball is "at your feet".
     var kickReachPadding: Double = 0.35
     var kickArc: Double = 60 * .pi / 180
-    /// Below this charge fraction a release is a soft touch, not a shot.
-    var softTouchThreshold: Double = 0.15
-    var dribbleSpeed: Double = 3.2
+
+    /// How far off a goal mouth a shot may be and still be snapped onto it.
+    ///
+    /// A thumb on a joystick cannot aim to the degree, and without this the only way to line a
+    /// goal up is to run at it — which means chasing the ball toward the target rather than
+    /// choosing one. Requested per-input, so it is an aid to the thumbs rather than a change
+    /// to the rules.
+    var aimAssistAngle: Double = 25 * .pi / 180
+
+    /// The fraction of your closing speed the ball takes when you run into it.
+    ///
+    /// Under 1 on purpose: at 1 the ball leaves at exactly your speed and runs away from you
+    /// for as long as it takes rolling resistance to bring it back, which is what made
+    /// carrying it feel like herding. Below 1 it always settles back at your feet.
+    var dribbleGrip: Double = 0.78
 
     // MARK: Dash
 
-    var dashDoubleTapWindow: Double = 0.26
     var dashDuration: Double = 0.22
     var dashSpeed: Double = 9.5
     var dashCooldown: Double = 1.6

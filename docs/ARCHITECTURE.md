@@ -96,8 +96,9 @@ Order within one step — this order is load-bearing and the tests pin it:
 6. **Goal test.** Solve the exact boundary crossing (see `RULES.md` §3) *before* the wall
    bounce, so a shot through a mouth is never reflected back by the wall it went through.
 7. **Ball vs line and posts.** Reflect if it did not score.
-8. **Kicks.** Resolve releases, soft touches and dribble nudges last so a kick's result is
-   never overwritten by the same step's integration.
+8. **Kicks.** Resolve body contacts and then releases last, so a kick's result is never
+   overwritten by the same step's integration. Both are ordered by distance to the ball rather
+   than by player index, so the nearest player has the last word on a contested ball.
 9. **Rules.** Apply concedes, eliminate at 6, seal goals, test the win condition.
 
 The engine never reads a clock. `GameScene` accumulates real frame time and calls `step` a

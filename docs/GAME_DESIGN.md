@@ -69,13 +69,22 @@ my goal" regardless of which slot the player drew.
 
 | Input | Action |
 |---|---|
-| Left thumb — floating joystick | Run. The figure turns toward travel. |
-| Right thumb — hold kick | Charge. A power ring fills around the button over 0.55 s. |
-| Release kick | Strike along the facing direction at the charged power. |
-| Light tap kick | Soft touch — a dribble nudge that keeps the ball at your feet. |
-| Double-tap kick | Dash: a 0.22 s lunge. Reaches balls you can't walk to, and shoulder-charges rivals off the ball. 1.6 s cooldown. |
+| Left thumb — floating joystick | Run. The figure turns toward travel, and that is also where you are aiming. |
+| **SHOOT** — tap | A shot, straight away, at the pace of a firm pass. |
+| **SHOOT** — hold | Charge. A power ring fills over 0.55 s; release for anything up to a rocket. |
+| **TACKLE** | A 0.22 s lunge. Reach the ball and you knock it loose; reach the player and you shove and stagger them. 1.6 s cooldown. |
 
 There is no pass button because there is nobody to pass to.
+
+**Aim assist.** A shot within 25° of an open mouth is snapped onto it. A thumb on a joystick
+cannot aim to the degree, and without the assist the only way to line a goal up is to run at
+it — which means chasing the ball toward your target rather than choosing one. The assist helps
+you hit the goal you picked; it never picks it for you, it never snaps onto your own goal, and
+it never snaps onto one that has been bricked up.
+
+Carrying the ball is what running into it does — the ball leaves your feet at rather less than
+your own speed, so it settles back to you rather than running away. The button is for hitting
+it, not for nudging it.
 
 ## 7. Choosing a nation
 

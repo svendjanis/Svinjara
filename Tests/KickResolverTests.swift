@@ -4,6 +4,7 @@ import XCTest
 final class KickResolverTests: XCTestCase {
 
     private let tuning = Tuning.default
+    private let arena = ArenaGeometry(tuning: .default)
 
     private func facingRight(at position: Vec2 = .zero) -> PlayerBody {
         PlayerBody(position: position, velocity: .zero, facing: 0)
@@ -53,7 +54,7 @@ final class KickResolverTests: XCTestCase {
         let body = PlayerBody(position: .zero, velocity: .zero, facing: 1.0)
         var ball = BallState(position: Vec2(angle: 1.0, length: 0.4))
         let event = KickResolver.strike(player: 2, body: body, charge: tuning.kickChargeTime,
-                                        ball: &ball, tuning: tuning)
+                                        assisted: false, ball: &ball, arena: arena, tuning: tuning)
 
         XCTAssertEqual(event, .kicked(player: 2, power: 1))
         XCTAssertEqual(ball.velocity.length, tuning.kickMaxSpeed, accuracy: 1e-12)
@@ -61,15 +62,17 @@ final class KickResolverTests: XCTestCase {
         XCTAssertEqual(ball.lastTouchedBy, 2)
     }
 
-    func testALightTapIsASoftTouchNotAShot() {
+    /// A bare tap has to feel like a shot. It used to produce a 3 m/s "soft touch", so the
+    /// most natural way to try to shoot gave the least shot-like result.
+    func testATapIsARealShot() {
         let body = facingRight()
         var ball = BallState(position: Vec2(x: 0.4, y: 0))
-        let charge = tuning.kickChargeTime * (tuning.softTouchThreshold / 2)
 
-        let event = KickResolver.strike(player: 0, body: body, charge: charge,
-                                        ball: &ball, tuning: tuning)
-        XCTAssertEqual(event, .softTouch(player: 0))
-        XCTAssertEqual(ball.velocity.length, tuning.dribbleSpeed, accuracy: 1e-12)
+        let event = KickResolver.strike(player: 0, body: body, charge: 0, assisted: false,
+                                        ball: &ball, arena: arena, tuning: tuning)
+        XCTAssertEqual(event, .kicked(player: 0, power: 0))
+        XCTAssertEqual(ball.velocity.length, tuning.kickMinSpeed, accuracy: 1e-12)
+        XCTAssertGreaterThan(ball.velocity.length, 6, "a tap must actually go somewhere")
     }
 
     func testAnIllegalKickLeavesTheBallAlone() {
@@ -78,7 +81,7 @@ final class KickResolverTests: XCTestCase {
         var ball = untouched
 
         XCTAssertNil(KickResolver.strike(player: 0, body: body, charge: tuning.kickChargeTime,
-                                         ball: &ball, tuning: tuning))
+                                         assisted: false, ball: &ball, arena: arena, tuning: tuning))
         XCTAssertEqual(ball, untouched)
     }
 
@@ -90,7 +93,7 @@ final class KickResolverTests: XCTestCase {
         var ball = BallState(position: Vec2(x: 0.4, y: 0), velocity: Vec2(x: -20, y: 0))
 
         KickResolver.strike(player: 0, body: body, charge: tuning.kickChargeTime,
-                            ball: &ball, tuning: tuning)
+                            assisted: false, ball: &ball, arena: arena, tuning: tuning)
 
         XCTAssertEqual(ball.velocity.x, tuning.kickMaxSpeed, accuracy: 1e-12)
         XCTAssertLessThanOrEqual(ball.velocity.length, tuning.kickMaxSpeed + 1e-9)
@@ -98,13 +101,17 @@ final class KickResolverTests: XCTestCase {
 
     // MARK: Body contact
 
-    func testRunningIntoTheBallCarriesIt() {
+    /// The ball leaves at less than your own speed on purpose. At 100% it runs away from you
+    /// until rolling resistance brings it back, which is what made carrying it feel like
+    /// herding rather than dribbling.
+    func testRunningIntoTheBallCarriesItButNotAway() {
         let body = PlayerBody(position: .zero, velocity: Vec2(x: 4, y: 0), facing: 0)
         var ball = BallState(position: Vec2(x: 0.4, y: 0))
 
         XCTAssertTrue(KickResolver.resolveBodyContact(player: 1, body: body, ball: &ball,
                                                       tuning: tuning))
-        XCTAssertEqual(ball.velocity.x, 4, accuracy: 1e-9)
+        XCTAssertEqual(ball.velocity.x, 4 * tuning.dribbleGrip, accuracy: 1e-9)
+        XCTAssertLessThan(ball.velocity.x, 4, "the ball must not outrun the player carrying it")
         XCTAssertEqual(ball.position.x, tuning.playerRadius + tuning.ballRadius, accuracy: 1e-12)
         XCTAssertEqual(ball.lastTouchedBy, 1)
     }
@@ -148,5 +155,79 @@ final class KickResolverTests: XCTestCase {
                                      tuning.kickReach + 1e-6,
                                      "lost the ball at x = \(body.position.x) m")
         }
+    }
+
+    // MARK: Aim assist
+
+    /// A thumb cannot aim to the degree, so a shot roughly at a mouth is snapped onto it.
+    func testAShotRoughlyAtAMouthIsSnappedOntoIt() {
+        let target = 2
+        let from = Vec2.zero
+        let trueBearing = arena.aimBearing(from: from, at: target)
+        let sloppy = trueBearing + 0.3   // ~17 degrees off, inside the 25 degree window
+
+        let aimed = KickResolver.aim(facing: sloppy, from: from, shooter: 0, assisted: true,
+                                     arena: arena, tuning: tuning)
+        XCTAssertEqual(Angles.separation(aimed, trueBearing), 0, accuracy: 1e-9)
+    }
+
+    func testAShotNowhereNearAMouthIsLeftAlone() {
+        let from = Vec2.zero
+        // Half way between two mouths is 36 degrees from each, well outside the window.
+        let between = Angles.normalize((arena.bearings[0] + arena.bearings[1]) / 2)
+        XCTAssertEqual(KickResolver.aim(facing: between, from: from, shooter: 0, assisted: true,
+                                        arena: arena, tuning: tuning),
+                       between)
+    }
+
+    func testAssistNeverSnapsOntoYourOwnGoal() {
+        let from = Vec2(x: 0, y: -2)
+        let ownBearing = arena.aimBearing(from: from, at: 0)
+        let aimed = KickResolver.aim(facing: ownBearing, from: from, shooter: 0, assisted: true,
+                                     arena: arena, tuning: tuning)
+        XCTAssertEqual(aimed, ownBearing, "it may still go in — but not because we helped")
+    }
+
+    func testAssistNeverSnapsOntoASealedGoal() {
+        var sealed = arena
+        sealed.seal(3)
+        let from = Vec2.zero
+        let bearing = sealed.aimBearing(from: from, at: 3)
+        XCTAssertEqual(KickResolver.aim(facing: bearing, from: from, shooter: 0, assisted: true,
+                                        arena: sealed, tuning: tuning),
+                       bearing)
+    }
+
+    func testAssistPicksTheNearestMouthNotJustAnyOne() {
+        let from = Vec2.zero
+        let near = arena.aimBearing(from: from, at: 1)
+        let aimed = KickResolver.aim(facing: near + 0.2, from: from, shooter: 0, assisted: true,
+                                     arena: arena, tuning: tuning)
+        XCTAssertEqual(Angles.separation(aimed, near), 0, accuracy: 1e-9)
+    }
+
+    /// Bots do not ask for it, and must be unaffected — otherwise the aim-error setting that
+    /// separates the difficulty tiers would be quietly cancelled out.
+    func testAssistDoesNothingWhenItIsNotAskedFor() {
+        let from = Vec2.zero
+        let sloppy = arena.aimBearing(from: from, at: 2) + 0.3
+        XCTAssertEqual(KickResolver.aim(facing: sloppy, from: from, shooter: 0, assisted: false,
+                                        arena: arena, tuning: tuning),
+                       sloppy)
+    }
+
+    func testAnAssistedStrikeLeavesOnTheAssistedBearing() {
+        let target = 1
+        var ball = BallState(position: Vec2(x: 0.4, y: 0))
+        let trueBearing = arena.aimBearing(from: ball.position, at: target)
+        let body = PlayerBody(position: .zero, velocity: .zero, facing: trueBearing + 0.25)
+
+        // Place the ball in front of the striker so the kick is legal.
+        ball.position = body.position + Vec2(angle: body.facing, length: 0.4)
+        let corrected = arena.aimBearing(from: ball.position, at: target)
+
+        KickResolver.strike(player: 0, body: body, charge: tuning.kickChargeTime,
+                            assisted: true, ball: &ball, arena: arena, tuning: tuning)
+        XCTAssertEqual(Angles.separation(ball.velocity.angle, corrected), 0, accuracy: 1e-6)
     }
 }

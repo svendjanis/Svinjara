@@ -73,21 +73,27 @@ while inside the angular span of a mouth belonging to a **live** player.
 - There is no possession flag. The ball is simply near your feet or it is not.
 - A kick is legal when the ball centre lies within `playerRadius + ballRadius + 0.35 m` and
   within **±60°** of the kicker's facing.
-- Kick power scales linearly with charge time, capped at 0.55 s. Releasing below 15% charge is
-  a **soft touch** — a dribble nudge, not a shot.
+- Kick power scales linearly with charge time, capped at 0.55 s. **Every legal release is a
+  shot**: a bare tap leaves at 8.5 m/s, a full charge at 17 m/s.
+- A shot may be **snapped onto an open mouth within 25°** of the striker's facing, when the
+  input asks for it. Never onto the striker's own goal, and never onto a sealed one. This is an
+  aid for thumbs — a bot aims precisely and has no reason to request it — and it travels
+  through the same input struct as everything else.
 - The ball's existing velocity is **replaced**, not added to, along the kick direction. Kicking
   a ball that is already flying at you does not produce a 30 m/s rocket.
-- Running your **body** into the ball pushes it off at the speed you were carrying into it,
-  and only that component — running past the ball must not fling it sideways. This is what
-  dribbling is: the ball rolls, decays under rolling resistance, and you catch it a step later.
-  There is no possession flag and no magnetism.
+- Running your **body** into the ball pushes it off at a fraction of the speed you were
+  carrying into it, and only the component going into the ball — running past it must not fling
+  it sideways. The fraction is under 1 deliberately, so a carried ball settles back at your feet
+  instead of outrunning you. There is no possession flag and no magnetism.
 
 ## 8. Contact
 
 - Players collide as equal-mass discs with low restitution — bodies jostle, they do not bounce
   apart like billiards.
-- A player in the **dash** state who contacts another applies a shove impulse and **staggers**
-  the victim for 0.4 s. A staggered player cannot kick or dash and steers at reduced authority.
+- A player in the **dash** state — a tackle — who contacts another applies a shove impulse and
+  **staggers** the victim for 0.4 s. A staggered player cannot kick or tackle and steers at
+  reduced authority. A tackle that reaches the *ball* knocks it loose, since a body moving at
+  lunge speed carries it well clear.
 - There are no fouls and no free kicks. Barging is the game.
 
 ## 9. Determinism

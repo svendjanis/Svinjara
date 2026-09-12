@@ -52,7 +52,8 @@ final class GameScene: SKScene {
     /// Player 0 is the human. Their input comes from thumbs; everyone else's from a brain.
     private var touch = TouchController()
     private var joystick: JoystickNode?
-    private var kickButton: KickButtonNode?
+    private var shootButton: ActionButtonNode?
+    private var tackleButton: ActionButtonNode?
     private var touchIDs: [ObjectIdentifier: Int] = [:]
     private var nextTouchID = 0
 
@@ -163,17 +164,36 @@ final class GameScene: SKScene {
         // Landscape puts the circle in the middle and leaves a margin each side; the thumbs
         // live in those margins rather than on top of the pitch.
         let stickRadius = min(size.height * 0.16, 56)
+        let shootRadius = min(size.height * 0.13, 46)
+        let tackleRadius = shootRadius * 0.74
+
+        let shootCentre = CGPoint(x: size.width - shootRadius * 1.5, y: shootRadius * 1.5)
+        // Up and to the left of shoot: reachable with the same thumb without ever being on the
+        // way to it, since hitting tackle when you meant to shoot is the worse mistake.
+        let tackleCentre = CGPoint(x: shootCentre.x - shootRadius * 1.85,
+                                   y: shootCentre.y + shootRadius * 0.85)
+
         touch.layout.stickRadius = Double(stickRadius)
-        touch.layout.doubleTapWindow = tuning.dashDoubleTapWindow
+        touch.layout.shootCentre = Vec2(x: Double(shootCentre.x), y: Double(shootCentre.y))
+        touch.layout.shootRadius = Double(shootRadius)
+        touch.layout.tackleCentre = Vec2(x: Double(tackleCentre.x), y: Double(tackleCentre.y))
+        touch.layout.tackleRadius = Double(tackleRadius)
 
         let stick = JoystickNode(radius: stickRadius)
         joystick = stick
         addChild(stick)
 
-        let button = KickButtonNode(radius: stickRadius * 0.72)
-        button.position = CGPoint(x: size.width - stickRadius * 1.4, y: stickRadius * 1.4)
-        kickButton = button
-        addChild(button)
+        let shoot = ActionButtonNode(radius: shootRadius, title: "SHOOT",
+                                     tint: UIColor(red: 1, green: 0.82, blue: 0.25, alpha: 0.95))
+        shoot.position = shootCentre
+        shootButton = shoot
+        addChild(shoot)
+
+        let tackle = ActionButtonNode(radius: tackleRadius, title: "TACKLE",
+                                      tint: UIColor(red: 0.45, green: 0.78, blue: 1, alpha: 0.95))
+        tackle.position = tackleCentre
+        tackleButton = tackle
+        addChild(tackle)
     }
 
     // MARK: Loop
@@ -217,9 +237,12 @@ final class GameScene: SKScene {
             joystick?.hide()
         }
 
-        let human = engine.state.players[0]
-        kickButton?.render(charge: CGFloat(human.chargeFraction(tuning: tuning)),
-                           pressed: touch.isKickDown)
+        let human = engine.state.players[GameScene.humanIndex]
+        shootButton?.render(charge: CGFloat(human.chargeFraction(tuning: tuning)),
+                            pressed: touch.isShootDown)
+        tackleButton?.render(charge: 0,
+                             pressed: touch.isTackleDown,
+                             ready: human.dashCooldown <= 0 && !human.isStaggered)
     }
 
     // MARK: Touches
@@ -236,9 +259,7 @@ final class GameScene: SKScene {
         for uiTouch in touches {
             let point = uiTouch.location(in: self)
             touch.touchDown(id: identify(uiTouch),
-                            at: Vec2(x: Double(point.x), y: Double(point.y)),
-                            onKickSide: point.x > size.width / 2,
-                            now: uiTouch.timestamp)
+                            at: Vec2(x: Double(point.x), y: Double(point.y)))
         }
     }
 
@@ -251,7 +272,7 @@ final class GameScene: SKScene {
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         for uiTouch in touches {
-            touch.touchUp(id: identify(uiTouch), now: uiTouch.timestamp)
+            touch.touchUp(id: identify(uiTouch))
             touchIDs.removeValue(forKey: ObjectIdentifier(uiTouch))
         }
     }
@@ -266,8 +287,8 @@ final class GameScene: SKScene {
             case .kicked(_, let power):
                 sfx.play(.kick, volume: Float(0.45 + 0.55 * power))
 
-            case .softTouch:
-                sfx.play(.touch, volume: 0.6)
+            case .tackled:
+                sfx.play(.touch, volume: 1)
 
             case .dashed:
                 sfx.play(.dash, volume: 0.8)

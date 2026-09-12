@@ -71,26 +71,31 @@ reproducible.
 - Tests: reaches 99% of top speed within the documented time; stops within the documented time.
 
 ### C2 · Kick with charge — `done`
-**As a player** I want to hold to hit it harder, so I can choose between a poke and a rocket.
+**As a player** I want to hold to hit it harder, so I can choose between a firm pass and a rocket.
 - Charge accumulates while held, caps at 0.55 s; release strikes along facing.
+- Every legal release is a shot — a bare tap leaves at 8.5 m/s. There is no soft touch.
 - Legal only within reach and ±60°; an illegal kick consumes the charge and does nothing.
 - Ball velocity is replaced, not added to.
-- Tests: power at 0%/50%/100% charge; out-of-arc kick leaves the ball untouched; a ball moving
-  toward the kicker does not gain extra speed.
+- Tests: power at 0%/50%/100% charge; a tap is a real shot; out-of-arc kick leaves the ball
+  untouched; a ball moving toward the kicker does not gain extra speed.
 
 ### C3 · Dribble — `done`
 **As a player** I want the ball to stay near my feet when I run with it, so I can carry it.
-- A light tap, or contact at low speed, nudges the ball along facing at dribble speed.
-- Running into a slow ball pushes it rather than passing through it.
-- Test: a player running a straight line keeps the ball within reach for 3 s.
+- Running into the ball pushes it off at a fraction of your closing speed, and only the
+  component going into it — running past it must not fling it sideways.
+- The fraction is under 1, so a carried ball settles back at your feet rather than outrunning
+  you. There is no possession flag and no magnetism.
+- Tests: a player running a straight line keeps the ball within reach for 3 s; the ball never
+  leaves faster than the player carrying it.
 
-### C4 · Dash and shoulder charge — `done`
-**As a player** I want a lunge, so I can make the save I could not walk to.
-- Double-tap kick within 260 ms triggers a 0.22 s burst; 1.6 s cooldown; not available while
-  staggered.
-- Contact while dashing shoves the victim and staggers them 0.4 s.
-- A staggered player cannot kick or dash and steers at reduced authority.
-- Tests: cooldown is enforced; dash covers the documented distance; stagger expires exactly.
+### C4 · Tackle — `done`
+**As a player** I want to win the ball back, and to make the save I could not walk to.
+- The TACKLE button triggers a 0.22 s burst; 1.6 s cooldown; not available while staggered.
+- Reaching the ball knocks it loose; reaching a player shoves and staggers them for 0.4 s.
+- A connected charge is spent — the lunge ends on contact rather than re-shoving every step.
+- A staggered player cannot kick or tackle and steers at reduced authority.
+- Tests: cooldown is enforced; the lunge covers the documented distance; stagger expires
+  exactly; shoot and tackle are independent.
 
 ---
 
@@ -176,11 +181,17 @@ something.
 - A second finger in the right half does not disturb it.
 - On-device check: run in all eight directions and in circles without the stick sticking.
 
-### F2 · Kick button with power ring — `done`
-**As a player** I want to see my power as I charge it.
-- Ring fills over the charge time; releasing strikes; double-tap dashes rather than kicking.
-- Haptic tick at full charge; a distinct one on dash.
-- On-device check: charge, release, and double-tap all behave on a real touch sequence.
+### F2 · Shoot and tackle buttons — `done`
+**As a player** I want to shoot and to win the ball back, without fighting the controls.
+- Two buttons on the right: SHOOT with a ring that fills over the charge time, and TACKLE
+  which dims while on cooldown.
+- Tap SHOOT for a shot at once; hold for power. A shot within 25° of an open mouth snaps
+  onto it, never onto your own and never onto a bricked-up one.
+- Buttons hit-test larger than they are drawn, and a thumb that slides off one is still
+  pressing it.
+- Tackle is its own button, not a hidden double-tap of shoot — which used to mean the second
+  tap of every dive also fired a shot nobody asked for.
+- On-device check: tap, hold-and-release, and tackle all behave on a real touch sequence.
 
 ### F3 · Top-down rendering — `done`
 **As a player** I want to see the whole pitch at once.

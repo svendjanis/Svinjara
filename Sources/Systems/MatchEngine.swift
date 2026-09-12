@@ -56,7 +56,7 @@ struct MatchEngine {
 
         // 2. Intent. Releases are collected now, while the charge is still known, but applied
         //    at the end so the ball's own motion cannot overwrite the result of a kick.
-        var releases: [(player: Int, charge: Double)] = []
+        var releases: [(player: Int, charge: Double, assisted: Bool)] = []
         for index in state.players.indices where state.players[index].isAlive {
             applyIntent(index: index, input: inputs[index], dt: dt,
                         releases: &releases, events: &events)
@@ -117,10 +117,14 @@ struct MatchEngine {
                     > state.players[$1].body.position.distanceSquared(to: state.ball.position) }
 
         for index in byDistance {
-            KickResolver.resolveBodyContact(player: index,
-                                            body: state.players[index].body,
-                                            ball: &state.ball,
-                                            tuning: tuning)
+            let touched = KickResolver.resolveBodyContact(player: index,
+                                                          body: state.players[index].body,
+                                                          ball: &state.ball,
+                                                          tuning: tuning)
+            // A lunge that gets to the ball knocks it loose — which is what a tackle is here.
+            if touched, state.players[index].isDashing {
+                events.append(.tackled(player: index))
+            }
         }
 
         // Two players releasing on the same 1/120 s slice is rare, but when it happens the
@@ -133,7 +137,9 @@ struct MatchEngine {
             if let event = KickResolver.strike(player: release.player,
                                                body: state.players[release.player].body,
                                                charge: release.charge,
+                                               assisted: release.assisted,
                                                ball: &state.ball,
+                                               arena: state.arena,
                                                tuning: tuning) {
                 events.append(event)
             }
@@ -147,7 +153,7 @@ struct MatchEngine {
     private mutating func applyIntent(index: Int,
                                       input: PlayerInput,
                                       dt: Double,
-                                      releases: inout [(player: Int, charge: Double)],
+                                      releases: inout [(player: Int, charge: Double, assisted: Bool)],
                                       events: inout [MatchEvent]) {
         var player = state.players[index]
 
@@ -184,7 +190,7 @@ struct MatchEngine {
             player.isCharging = true
         }
         if input.kickReleased {
-            releases.append((player: index, charge: player.charge))
+            releases.append((player: index, charge: player.charge, assisted: input.aimAssist))
             player.charge = 0
             player.isCharging = false
         }

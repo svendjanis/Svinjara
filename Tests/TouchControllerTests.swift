@@ -3,9 +3,17 @@ import XCTest
 
 final class TouchControllerTests: XCTestCase {
 
+    private let shoot = Vec2(x: 800, y: 70)
+    private let tackle = Vec2(x: 715, y: 105)
+
     private func controller() -> TouchController {
         var controller = TouchController()
-        controller.layout = TouchController.Layout(stickRadius: 50, deadZone: 7, doubleTapWindow: 0.26)
+        controller.layout = TouchController.Layout(stickRadius: 50, deadZone: 7,
+                                                   shootCentre: Vec2(x: 800, y: 70),
+                                                   shootRadius: 44,
+                                                   tackleCentre: Vec2(x: 715, y: 105),
+                                                   tackleRadius: 32,
+                                                   touchSlop: 1.35)
         return controller
     }
 
@@ -13,7 +21,7 @@ final class TouchControllerTests: XCTestCase {
 
     func testTheStickAppearsWhereTheThumbLands() {
         var touch = controller()
-        touch.touchDown(id: 1, at: Vec2(x: 90, y: 120), onKickSide: false, now: 0)
+        touch.touchDown(id: 1, at: Vec2(x: 90, y: 120))
 
         XCTAssertEqual(touch.stickOrigin, Vec2(x: 90, y: 120))
         XCTAssertEqual(touch.consume().move, .zero, "no movement until the thumb moves")
@@ -21,7 +29,7 @@ final class TouchControllerTests: XCTestCase {
 
     func testDraggingSteersInThatDirection() {
         var touch = controller()
-        touch.touchDown(id: 1, at: Vec2(x: 100, y: 100), onKickSide: false, now: 0)
+        touch.touchDown(id: 1, at: Vec2(x: 100, y: 100))
         touch.touchMoved(id: 1, to: Vec2(x: 150, y: 100))
 
         let move = touch.consume().move
@@ -31,21 +39,21 @@ final class TouchControllerTests: XCTestCase {
 
     func testAHalfPushIsHalfSpeed() {
         var touch = controller()
-        touch.touchDown(id: 1, at: Vec2(x: 100, y: 100), onKickSide: false, now: 0)
+        touch.touchDown(id: 1, at: Vec2(x: 100, y: 100))
         touch.touchMoved(id: 1, to: Vec2(x: 125, y: 100))
         XCTAssertEqual(touch.consume().move.length, 0.5, accuracy: 1e-9)
     }
 
     func testPushingBeyondTheRadiusIsStillFullTilt() {
         var touch = controller()
-        touch.touchDown(id: 1, at: Vec2(x: 100, y: 100), onKickSide: false, now: 0)
+        touch.touchDown(id: 1, at: Vec2(x: 100, y: 100))
         touch.touchMoved(id: 1, to: Vec2(x: 400, y: 100))
         XCTAssertEqual(touch.consume().move.length, 1, accuracy: 1e-9)
     }
 
     func testTinyMovementsAreHoldingStillNotWalking() {
         var touch = controller()
-        touch.touchDown(id: 1, at: Vec2(x: 100, y: 100), onKickSide: false, now: 0)
+        touch.touchDown(id: 1, at: Vec2(x: 100, y: 100))
         touch.touchMoved(id: 1, to: Vec2(x: 104, y: 102))
         XCTAssertEqual(touch.consume().move, .zero)
     }
@@ -53,7 +61,7 @@ final class TouchControllerTests: XCTestCase {
     func testEveryDirectionIsReachable() {
         for bearing in stride(from: -Double.pi, to: Double.pi, by: 0.3) {
             var touch = controller()
-            touch.touchDown(id: 1, at: .zero, onKickSide: false, now: 0)
+            touch.touchDown(id: 1, at: .zero)
             touch.touchMoved(id: 1, to: Vec2(angle: bearing, length: 50))
             XCTAssertEqual(Angles.separation(touch.consume().move.angle, bearing), 0, accuracy: 1e-9)
         }
@@ -61,9 +69,9 @@ final class TouchControllerTests: XCTestCase {
 
     func testReleasingTheStickStopsTheRun() {
         var touch = controller()
-        touch.touchDown(id: 1, at: .zero, onKickSide: false, now: 0)
+        touch.touchDown(id: 1, at: .zero)
         touch.touchMoved(id: 1, to: Vec2(x: 50, y: 0))
-        touch.touchUp(id: 1, now: 0.4)
+        touch.touchUp(id: 1)
 
         XCTAssertNil(touch.stickOrigin)
         XCTAssertEqual(touch.consume().move, .zero)
@@ -74,10 +82,10 @@ final class TouchControllerTests: XCTestCase {
     /// The whole reason this logic is a separate, testable type.
     func testTheKickThumbDoesNotDisturbTheStick() {
         var touch = controller()
-        touch.touchDown(id: 1, at: Vec2(x: 60, y: 60), onKickSide: false, now: 0)
+        touch.touchDown(id: 1, at: Vec2(x: 60, y: 60))
         touch.touchMoved(id: 1, to: Vec2(x: 110, y: 60))
 
-        touch.touchDown(id: 2, at: Vec2(x: 700, y: 60), onKickSide: true, now: 0.1)
+        touch.touchDown(id: 2, at: shoot)
         touch.touchMoved(id: 2, to: Vec2(x: 720, y: 90))
 
         let input = touch.consume()
@@ -88,10 +96,10 @@ final class TouchControllerTests: XCTestCase {
 
     func testLiftingTheKickThumbLeavesTheStickAlone() {
         var touch = controller()
-        touch.touchDown(id: 1, at: .zero, onKickSide: false, now: 0)
+        touch.touchDown(id: 1, at: .zero)
         touch.touchMoved(id: 1, to: Vec2(x: 0, y: 50))
-        touch.touchDown(id: 2, at: Vec2(x: 700, y: 60), onKickSide: true, now: 0.1)
-        touch.touchUp(id: 2, now: 0.3)
+        touch.touchDown(id: 2, at: shoot)
+        touch.touchUp(id: 2)
 
         XCTAssertNotNil(touch.stickOrigin)
         XCTAssertEqual(touch.consume().move.length, 1, accuracy: 1e-9)
@@ -99,8 +107,8 @@ final class TouchControllerTests: XCTestCase {
 
     func testASecondThumbOnTheStickSideIsIgnored() {
         var touch = controller()
-        touch.touchDown(id: 1, at: Vec2(x: 100, y: 100), onKickSide: false, now: 0)
-        touch.touchDown(id: 2, at: Vec2(x: 20, y: 300), onKickSide: false, now: 0.05)
+        touch.touchDown(id: 1, at: Vec2(x: 100, y: 100))
+        touch.touchDown(id: 2, at: Vec2(x: 20, y: 300))
         XCTAssertEqual(touch.stickOrigin, Vec2(x: 100, y: 100), "the first thumb keeps the stick")
     }
 
@@ -108,68 +116,76 @@ final class TouchControllerTests: XCTestCase {
 
     func testHoldingAndReleasingProducesExactlyOneRelease() {
         var touch = controller()
-        touch.touchDown(id: 2, at: Vec2(x: 700, y: 60), onKickSide: true, now: 0)
+        touch.touchDown(id: 2, at: shoot)
         XCTAssertTrue(touch.consume().kickHeld)
         XCTAssertTrue(touch.consume().kickHeld, "still held on later steps")
 
-        touch.touchUp(id: 2, now: 0.5)
+        touch.touchUp(id: 2)
         XCTAssertTrue(touch.consume().kickReleased)
         XCTAssertFalse(touch.consume().kickReleased, "a release lands on exactly one step")
     }
 
-    func testDoubleTappingLunges() {
+    func testTheTackleButtonAsksForALunge() {
         var touch = controller()
-        touch.touchDown(id: 2, at: Vec2(x: 700, y: 60), onKickSide: true, now: 0)
-        touch.touchUp(id: 2, now: 0.06)
-        _ = touch.consume()
+        touch.touchDown(id: 2, at: tackle)
 
-        touch.touchDown(id: 3, at: Vec2(x: 700, y: 60), onKickSide: true, now: 0.14)
         let input = touch.consume()
         XCTAssertTrue(input.dashRequested)
-        XCTAssertFalse(input.kickHeld, "the lunge press must not also charge a shot")
+        XCTAssertFalse(input.kickHeld, "tackling must not also charge a shot")
     }
 
-    /// Without this the second tap of every dive also fires a shot nobody asked for.
-    func testTheLungePressDoesNotAlsoKick() {
+    func testATackleIsDeliveredToExactlyOneStep() {
         var touch = controller()
-        touch.touchDown(id: 2, at: Vec2(x: 700, y: 60), onKickSide: true, now: 0)
-        touch.touchUp(id: 2, now: 0.06)
-        _ = touch.consume()
-
-        touch.touchDown(id: 3, at: Vec2(x: 700, y: 60), onKickSide: true, now: 0.14)
-        _ = touch.consume()
-        touch.touchUp(id: 3, now: 0.22)
-        XCTAssertFalse(touch.consume().kickReleased)
-    }
-
-    func testTwoSlowTapsAreTwoKicksNotALunge() {
-        var touch = controller()
-        touch.touchDown(id: 2, at: Vec2(x: 700, y: 60), onKickSide: true, now: 0)
-        touch.touchUp(id: 2, now: 0.1)
-        XCTAssertTrue(touch.consume().kickReleased)
-
-        touch.touchDown(id: 3, at: Vec2(x: 700, y: 60), onKickSide: true, now: 0.9)
-        let second = touch.consume()
-        XCTAssertFalse(second.dashRequested)
-        XCTAssertTrue(second.kickHeld)
-    }
-
-    func testALungeIsDeliveredToExactlyOneStep() {
-        var touch = controller()
-        touch.touchDown(id: 2, at: Vec2(x: 700, y: 60), onKickSide: true, now: 0)
-        touch.touchUp(id: 2, now: 0.06)
-        _ = touch.consume()
-        touch.touchDown(id: 3, at: Vec2(x: 700, y: 60), onKickSide: true, now: 0.14)
-
+        touch.touchDown(id: 2, at: tackle)
         XCTAssertTrue(touch.consume().dashRequested)
         XCTAssertFalse(touch.consume().dashRequested)
     }
 
+    /// Tackle used to be a double-tap of the shoot button, which meant the second tap of every
+    /// dive also fired a shot. Separate buttons make that impossible by construction.
+    func testShootingAndTacklingAreIndependent() {
+        var touch = controller()
+        touch.touchDown(id: 2, at: shoot)
+        touch.touchDown(id: 3, at: tackle)
+
+        let both = touch.consume()
+        XCTAssertTrue(both.kickHeld, "still charging")
+        XCTAssertTrue(both.dashRequested, "and tackling")
+
+        touch.touchUp(id: 2)
+        XCTAssertTrue(touch.consume().kickReleased)
+    }
+
+    /// A thumb that lands slightly off a button should still hit it, and a thumb that slides
+    /// off one mid-press is still pressing it.
+    func testButtonsAreForgiving() {
+        var touch = controller()
+        touch.touchDown(id: 2, at: shoot + Vec2(x: 50, y: 0))
+        XCTAssertTrue(touch.consume().kickHeld, "just outside the drawn edge still counts")
+
+        touch.touchMoved(id: 2, to: Vec2(x: 200, y: 300))
+        XCTAssertTrue(touch.consume().kickHeld, "sliding off does not cancel the shot")
+        XCTAssertNil(touch.stickOrigin, "and does not become a stick either")
+    }
+
+    func testAThumbFarFromEitherButtonIsTheStick() {
+        var touch = controller()
+        touch.touchDown(id: 1, at: Vec2(x: 120, y: 120))
+        XCTAssertEqual(touch.stickOrigin, Vec2(x: 120, y: 120))
+        XCTAssertFalse(touch.consume().kickHeld)
+    }
+
+    /// Thumbs are aimed at the pitch, not at the buttons, so the assist is always requested.
+    func testTheHumanAlwaysAsksForAimAssist() {
+        var touch = controller()
+        XCTAssertTrue(touch.consume().aimAssist)
+    }
+
     func testCancellingClearsEverything() {
         var touch = controller()
-        touch.touchDown(id: 1, at: .zero, onKickSide: false, now: 0)
+        touch.touchDown(id: 1, at: .zero)
         touch.touchMoved(id: 1, to: Vec2(x: 50, y: 0))
-        touch.touchDown(id: 2, at: Vec2(x: 700, y: 60), onKickSide: true, now: 0.1)
+        touch.touchDown(id: 2, at: shoot)
 
         touch.cancelAll()
 
@@ -203,20 +219,19 @@ final class TouchControllerTests: XCTestCase {
 
             // Drive the stick as a thumb would: plant it, then drag in the direction wanted.
             if !stickDown {
-                touch.touchDown(id: 1, at: .zero, onKickSide: false, now: Double(step) * tuning.fixedStep)
+                touch.touchDown(id: 1, at: .zero)
                 stickDown = true
             }
             touch.touchMoved(id: 1, to: goal.normalized * 50)
 
             let canKick = KickResolver.canStrike(body: me.body, ball: engine.state.ball, tuning: tuning)
             let lined = Angles.separation(me.body.facing, aim.angle) < 0.2
-            let now = Double(step) * tuning.fixedStep
 
             if canKick, lined, holding, me.chargeFraction(tuning: tuning) > 0.7 {
-                touch.touchUp(id: 2, now: now)
+                touch.touchUp(id: 2)
                 holding = false
             } else if !holding {
-                touch.touchDown(id: 2, at: Vec2(x: 700, y: 60), onKickSide: true, now: now)
+                touch.touchDown(id: 2, at: shoot)
                 holding = true
             }
 

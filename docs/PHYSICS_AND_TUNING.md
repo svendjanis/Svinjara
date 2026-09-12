@@ -130,17 +130,16 @@ construct a variant without touching global state.
 | | |
 |---|---|
 | Charge time to full | 0.55 s |
-| Speed at min charge | 6 m/s |
+| Speed at min charge (a bare tap) | 8.5 m/s |
 | Speed at full charge | 17 m/s |
 | Reach | radii + 0.35 m |
 | Arc | ±60° of facing |
-| Soft-touch threshold | 15% charge |
-| Dribble nudge speed | 3.2 m/s |
+| Aim assist window | ±25° |
+| Dribble grip | 0.78 of your closing speed |
 
-### Dash
+### Tackle (the dash)
 | | |
 |---|---|
-| Double-tap window | 260 ms |
 | Duration | 0.22 s |
 | Speed | 9.5 m/s |
 | Cooldown | 1.6 s |
