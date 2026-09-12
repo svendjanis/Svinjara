@@ -37,6 +37,13 @@ final class GameScene: SKScene {
     private var pointsPerMetre: CGFloat = 1
     private var pitchCentre: CGPoint = .zero
 
+    /// Player 0 is the human. Their input comes from thumbs; everyone else's from a brain.
+    private var touch = TouchController()
+    private var joystick: JoystickNode?
+    private var kickButton: KickButtonNode?
+    private var touchIDs: [ObjectIdentifier: Int] = [:]
+    private var nextTouchID = 0
+
     init(size: CGSize,
          lineup: [Nation],
          difficulty: BotDifficulty = .normal,
@@ -113,8 +120,27 @@ final class GameScene: SKScene {
         ballNode = ball
         addChild(ball)
 
+        buildControls()
+
         snapNextFrame = true
         render(blend: 1)
+    }
+
+    private func buildControls() {
+        // Landscape puts the circle in the middle and leaves a margin each side; the thumbs
+        // live in those margins rather than on top of the pitch.
+        let stickRadius = min(size.height * 0.16, 56)
+        touch.layout.stickRadius = Double(stickRadius)
+        touch.layout.doubleTapWindow = tuning.dashDoubleTapWindow
+
+        let stick = JoystickNode(radius: stickRadius)
+        joystick = stick
+        addChild(stick)
+
+        let button = KickButtonNode(radius: stickRadius * 0.72)
+        button.position = CGPoint(x: size.width - stickRadius * 1.4, y: stickRadius * 1.4)
+        kickButton = button
+        addChild(button)
     }
 
     // MARK: Loop
@@ -133,16 +159,72 @@ final class GameScene: SKScene {
 
         while accumulator >= tuning.fixedStep {
             previous = engine.state
-            let inputs = (0..<lineup.count).map {
+            var inputs = (0..<lineup.count).map {
                 brains[$0].decide(state: engine.state, tuning: tuning)
             }
+            // One consume per simulation step, so a release or a lunge lands on exactly one
+            // step however many frames the finger was down for.
+            inputs[0] = touch.consume()
             handle(engine.step(inputs: inputs))
             accumulator -= tuning.fixedStep
             if engine.state.isOver { break }
         }
 
         render(blend: snapNextFrame ? 1 : CGFloat(accumulator / tuning.fixedStep))
+        renderControls()
         snapNextFrame = false
+    }
+
+    private func renderControls() {
+        if let origin = touch.stickOrigin {
+            let offset = touch.stickOffset
+            joystick?.show(origin: CGPoint(x: CGFloat(origin.x), y: CGFloat(origin.y)),
+                           offset: CGPoint(x: CGFloat(offset.x), y: CGFloat(offset.y)))
+        } else {
+            joystick?.hide()
+        }
+
+        let human = engine.state.players[0]
+        kickButton?.render(charge: CGFloat(human.chargeFraction(tuning: tuning)),
+                           pressed: touch.isKickDown)
+    }
+
+    // MARK: Touches
+
+    private func identify(_ uiTouch: UITouch) -> Int {
+        let key = ObjectIdentifier(uiTouch)
+        if let existing = touchIDs[key] { return existing }
+        nextTouchID += 1
+        touchIDs[key] = nextTouchID
+        return nextTouchID
+    }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        for uiTouch in touches {
+            let point = uiTouch.location(in: self)
+            touch.touchDown(id: identify(uiTouch),
+                            at: Vec2(x: Double(point.x), y: Double(point.y)),
+                            onKickSide: point.x > size.width / 2,
+                            now: uiTouch.timestamp)
+        }
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        for uiTouch in touches {
+            let point = uiTouch.location(in: self)
+            touch.touchMoved(id: identify(uiTouch), to: Vec2(x: Double(point.x), y: Double(point.y)))
+        }
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        for uiTouch in touches {
+            touch.touchUp(id: identify(uiTouch), now: uiTouch.timestamp)
+            touchIDs.removeValue(forKey: ObjectIdentifier(uiTouch))
+        }
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        touchesEnded(touches, with: event)
     }
 
     private func handle(_ events: [MatchEvent]) {

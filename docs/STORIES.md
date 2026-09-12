@@ -170,13 +170,13 @@ something.
 
 ## Epic F — Feel
 
-### F1 · Joystick — `todo`
+### F1 · Joystick — `done`
 **As a player** I want a thumb stick that appears where I touch.
 - Appears on touch-down in the left half, follows within a radius, releases cleanly.
 - A second finger in the right half does not disturb it.
 - On-device check: run in all eight directions and in circles without the stick sticking.
 
-### F2 · Kick button with power ring — `todo`
+### F2 · Kick button with power ring — `done`
 **As a player** I want to see my power as I charge it.
 - Ring fills over the charge time; releasing strikes; double-tap dashes rather than kicking.
 - Haptic tick at full charge; a distinct one on dash.
