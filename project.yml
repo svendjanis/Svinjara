@@ -1,0 +1,54 @@
+name: Svinjara
+
+options:
+  bundleIdPrefix: com.reducos
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_STRICT_CONCURRENCY: minimal
+    DEVELOPMENT_TEAM: P53TDVJ959
+    # Simulator builds need no real identity; keeping them unsigned makes CLI builds fast and
+    # prompt-free. Device builds fall through to automatic signing with the team above.
+    CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]: NO
+    CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]: NO
+
+targets:
+  Svinjara:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.reducos.svinjara
+        PRODUCT_NAME: Svinjara
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Resources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1,2"
+    scheme:
+      testTargets:
+        - SvinjaraTests
+
+  SvinjaraTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: Svinjara
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.reducos.svinjara.tests
+        GENERATE_INFOPLIST_FILE: YES
