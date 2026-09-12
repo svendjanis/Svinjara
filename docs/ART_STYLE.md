@@ -78,7 +78,8 @@ fast, which is what actually makes it findable in a scrap.
 
 ## 6. HUD
 
-Top of screen: five chips, one per player, in goal order. Each shows the nation's kit colours
+Landscape, so the pitch is a circle in the middle with a margin each side. Along the top: five
+chips, one per player, in goal order. Each shows the nation's kit colours
 and six pips, filling as they concede. The human's chip is larger and outlined. A chip greys out
 and its pips go solid when that player is eliminated. No numbers, no names — colour and pips
 carry it, and the eye can read the whole standings in one glance without leaving the ball.

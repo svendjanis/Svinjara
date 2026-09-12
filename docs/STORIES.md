@@ -14,7 +14,7 @@ Status: `todo` · `wip` · `done`
 story has somewhere to land.
 - `xcodegen generate` produces `Svinjara.xcodeproj`; it is git-ignored.
 - `xcodebuild … build` succeeds with no warnings for the app and test targets.
-- App launches on the iPhone 17 Pro simulator to a placeholder scene, portrait-locked.
+- App launches on the iPhone 17 Pro simulator to a placeholder scene, landscape-locked.
 
 ### A2 · Vector and RNG primitives — `done`
 **As a developer** I want `Vec2` and a seeded generator, so the simulation can be exact and
@@ -70,7 +70,7 @@ reproducible.
 - Facing turns toward travel at a limited rate rather than snapping.
 - Tests: reaches 99% of top speed within the documented time; stops within the documented time.
 
-### C2 · Kick with charge — `todo`
+### C2 · Kick with charge — `done`
 **As a player** I want to hold to hit it harder, so I can choose between a poke and a rocket.
 - Charge accumulates while held, caps at 0.55 s; release strikes along facing.
 - Legal only within reach and ±60°; an illegal kick consumes the charge and does nothing.
@@ -78,13 +78,13 @@ reproducible.
 - Tests: power at 0%/50%/100% charge; out-of-arc kick leaves the ball untouched; a ball moving
   toward the kicker does not gain extra speed.
 
-### C3 · Dribble — `todo`
+### C3 · Dribble — `done`
 **As a player** I want the ball to stay near my feet when I run with it, so I can carry it.
 - A light tap, or contact at low speed, nudges the ball along facing at dribble speed.
 - Running into a slow ball pushes it rather than passing through it.
 - Test: a player running a straight line keeps the ball within reach for 3 s.
 
-### C4 · Dash and shoulder charge — `todo`
+### C4 · Dash and shoulder charge — `done`
 **As a player** I want a lunge, so I can make the save I could not walk to.
 - Double-tap kick within 260 ms triggers a 0.22 s burst; 1.6 s cooldown; not available while
   staggered.
@@ -96,7 +96,7 @@ reproducible.
 
 ## Epic D — Rules
 
-### D1 · Goals are detected exactly — `todo`
+### D1 · Goals are detected exactly — `done`
 **As a player** I want a shot through the mouth to count and a shot off the post not to.
 - Crossing is solved analytically; the bearing is tested at the crossing point.
 - Only mouths of live players score; sealed arcs rebound.
@@ -104,14 +104,14 @@ reproducible.
 - Tests: a 17 m/s shot through a mouth scores in one step; a shot clipping a post does not; a
   shot at a sealed arc rebounds and records nothing.
 
-### D2 · Conceding and the reset — `todo`
+### D2 · Conceding and the reset — `done`
 **As a player** I want a clear beat after a goal, so I know what happened and can regroup.
 - Concede applies immediately; 1.2 s celebration freezes play.
 - On resume: ball centred at rest, every live player on their home spot facing centre, all
   transient state cleared.
 - Test: state after a reset is identical regardless of what it was before.
 
-### D3 · Elimination seals a goal — `todo`
+### D3 · Elimination seals a goal — `done`
 **As a player** I want a knocked-out rival's goal bricked up, so the pitch changes as we go.
 - At 6 conceded the player is removed during that same celebration.
 - Their arc becomes wall for ball and players; posts removed.
@@ -119,13 +119,13 @@ reproducible.
 - Tests: the 6th concede eliminates; a ball fired at the sealed arc rebounds; survivors' counts
   and positions untouched.
 
-### D4 · Winning — `todo`
+### D4 · Winning — `done`
 **As a player** I want the match to end when I am the last one standing.
 - One live player remaining ends the match; finishing order is recorded.
 - A concede that eliminates the fourth player ends the match in the same step.
 - Test: a scripted match terminates with exactly one winner and a full four-deep order.
 
-### D5 · Determinism — `todo`
+### D5 · Determinism — `done`
 **As a developer** I want identical results from identical inputs, so balance work means
 something.
 - No clock, no system RNG, no frame-duration dependence anywhere in `Systems/` or `AI/`.
@@ -184,7 +184,8 @@ something.
 
 ### F3 · Top-down rendering — `todo`
 **As a player** I want to see the whole pitch at once.
-- The circle fits the width with the HUD above and controls below; no scrolling, no camera.
+- Landscape. The circle fits the height, centred, with the thumb controls in the margins either
+  side of it and the HUD along the top; no scrolling, no camera.
 - The human's goal is at the bottom whichever slot they drew.
 - Positions interpolate between simulation steps so motion is smooth at 60 and 120 Hz.
 

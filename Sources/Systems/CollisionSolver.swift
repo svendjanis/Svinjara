@@ -18,10 +18,11 @@ enum CollisionSolver {
     /// The first point at which the segment `p0 → p1` reaches `radius` from the origin
     /// travelling outward, solved analytically.
     ///
-    /// Goals are decided by the bearing at which the ball crossed, and near the line one step
-    /// swings the bearing by up to 0.74° — 12% of a mouth's 6.26° half-width. Taking the
-    /// bearing from where the ball ended up rather than from where it crossed is therefore
-    /// wrong by exactly the margin that separates a goal from the inside of a post.
+    /// The contact point is what the rebound normal is taken from: the normal is the radius at
+    /// contact, so using the penetrated endpoint instead would tilt every bounce by up to 0.74°
+    /// and put the ball back at a bearing it never actually reached. It also decides mouth
+    /// versus wall, though the posts happen to shadow that margin — see
+    /// `docs/PHYSICS_AND_TUNING.md` §5.
     static func outwardCrossing(from p0: Vec2, to p1: Vec2, radius: Double) -> Crossing? {
         let c = p0.lengthSquared - radius * radius
         // Already at or beyond the radius when the step began.
@@ -169,6 +170,35 @@ enum CollisionSolver {
         let normal = (contact - centre).normalized
         velocity = reflect(velocity, normal: normal, restitution: restitution)
         position = contact + velocity * ((1 - t) * dt)
+        return true
+    }
+}
+
+extension CollisionSolver {
+
+    /// A player against a post. Players slide around posts rather than bouncing off them, for
+    /// the same reason they slide along the line: a defender pressed against their own post is
+    /// trying to move, not to ricochet.
+    ///
+    /// This cannot be `resolveAgainstStatic` with zero restitution — reflecting by zero would
+    /// cancel the whole velocity, including the part running safely past the post, and pin the
+    /// player in place.
+    @discardableResult
+    static func slideAroundStatic(position: inout Vec2,
+                                  velocity: inout Vec2,
+                                  bodyRadius: Double,
+                                  centre: Vec2,
+                                  staticRadius: Double) -> Bool {
+        let delta = position - centre
+        let distance = delta.length
+        let minimum = bodyRadius + staticRadius
+        guard distance < minimum else { return false }
+
+        let normal = distance > 1e-9 ? delta / distance : Vec2(x: 1, y: 0)
+        position = centre + normal * minimum
+
+        let into = velocity.dot(normal)
+        if into < 0 { velocity -= normal * into }
         return true
     }
 }

@@ -23,8 +23,9 @@ enum Theme {
 
     // MARK: Layout
 
-    /// How much of the view's shorter edge the pitch occupies. The remainder is the HUD strip
-    /// above and the thumb controls below, which must not overlap the circle.
+    /// How much of the view's shorter edge the pitch occupies. The game is landscape, so the
+    /// shorter edge is the height: the circle fits it and the margins left and right carry the
+    /// thumbs, which is the whole reason for landscape — controls beside the pitch, not on it.
     static let pitchScreenFraction: CGFloat = 0.92
 
     /// Converts simulation metres to screen points for a given view size and pitch radius.

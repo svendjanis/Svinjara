@@ -59,11 +59,22 @@ at its endpoint.
 
 ## 5. The goal crossing, exactly
 
-A goal is decided by the *bearing* at which the ball crossed the line, and over one step near
-the line the bearing swings by up to `0.14 / 11 = 0.013 rad`, or 0.74°. A mouth's half-width is
-6.26°, so taking the bearing from where the ball ended up rather than from where it actually
-crossed is wrong by up to **12% of the half-mouth**. That is the margin between a goal and the
-inside of a post, so it is solved properly rather than approximated.
+A goal is decided by the *bearing* at which the ball crossed the line, and that bearing is
+taken at the crossing point rather than wherever the step happened to end.
+
+It is worth being precise about how much this buys, because the obvious justification is wrong.
+Over one step near the line the bearing swings by at most `0.14 / 11 = 0.013 rad` (0.74°),
+against a mouth half-width of 6.26°. But a post's contact radius casts an angular shadow of
+`0.23 / 11 = 0.021 rad` (1.20°) either side of each mouth edge — **wider than the swing**. So
+any crossing close enough to a mouth edge for the endpoint and the crossing point to disagree
+has already been intercepted by the post, and the goal verdict itself is never actually in
+doubt. That is a pleasant property of the geometry rather than an accident, and it is why there
+are no ambiguous goals.
+
+What the crossing point genuinely buys is the **rebound**: the surface normal is the radius at
+the point of contact, and taking it from the penetrated endpoint instead would tilt every
+bounce by up to 0.74° and reposition the ball at a bearing it never actually reached. The
+closed form is four lines and exact, so there is no reason to carry an approximation.
 
 With the ball at `p₀` moving to `p₁ = p₀ + v·dt`, find `t ∈ [0,1]` where
 `|p₀ + t·(p₁ − p₀)| = R`:

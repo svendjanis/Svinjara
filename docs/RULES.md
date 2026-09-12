@@ -71,6 +71,10 @@ while inside the angular span of a mouth belonging to a **live** player.
   a **soft touch** — a dribble nudge, not a shot.
 - The ball's existing velocity is **replaced**, not added to, along the kick direction. Kicking
   a ball that is already flying at you does not produce a 30 m/s rocket.
+- Running your **body** into the ball pushes it off at the speed you were carrying into it,
+  and only that component — running past the ball must not fling it sideways. This is what
+  dribbling is: the ball rolls, decays under rolling resistance, and you catch it a step later.
+  There is no possession flag and no magnetism.
 
 ## 8. Contact
 

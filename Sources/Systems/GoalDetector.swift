@@ -53,9 +53,9 @@ enum GoalDetector {
         }
 
         // Inside a mouth. It counts only once the centre is past the paint, and the bearing is
-        // tested at that crossing rather than at the step's endpoint — over one step near the
-        // line the bearing swings by up to 12% of a mouth's half-width, which is precisely the
-        // margin between a goal and the inside of a post.
+        // taken at the crossing rather than at the step's endpoint. The two can differ by up
+        // to 0.74°, though a post's shadow is wider than that, so the verdict itself is never
+        // genuinely in doubt — see `docs/PHYSICS_AND_TUNING.md` §5.
         if let throughLine = CollisionSolver.outwardCrossing(from: previous,
                                                             to: ball.position,
                                                             radius: arena.radius),

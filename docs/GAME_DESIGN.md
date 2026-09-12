@@ -59,9 +59,11 @@ Five goals sit *on* the line at 72° apart. Each is two solid posts with an open
 them. Posts are real: ball and players both bounce off them, so "off the post" is a genuine and
 frequent event rather than a rounding error.
 
-The camera is fixed and top-down with the whole circle always on screen. **The human player's
-goal is always rotated to the bottom of the screen**, so "back" always means "toward my goal"
-regardless of which slot the player drew.
+The camera is fixed and top-down, held in **landscape** with the whole circle always on screen.
+The circle fits the height and the margins either side of it carry the thumbs, which is what
+landscape buys: the controls sit beside the pitch rather than on top of it. **The human
+player's goal is always rotated to the bottom of the screen**, so "back" always means "toward
+my goal" regardless of which slot the player drew.
 
 ## 6. Controls
 

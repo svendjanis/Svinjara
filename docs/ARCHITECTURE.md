@@ -74,8 +74,12 @@ Tests/        one flat file per system
 `(state, inputs, dt)` and returns the events the renderer should react to.
 
 ```swift
-mutating func step(inputs: [PlayerInput?], dt: Double) -> [MatchEvent]
+mutating func step(inputs: [PlayerInput]) -> [MatchEvent]
 ```
+
+There is deliberately no `dt` parameter. A caller that can pass in a frame duration is a
+caller that can make the match depend on the display refresh rate, which is exactly what
+determinism forbids — so the step length is the engine's own, and only ever `1/120 s`.
 
 Order within one step — this order is load-bearing and the tests pin it:
 
@@ -94,8 +98,11 @@ Order within one step — this order is load-bearing and the tests pin it:
 9. **Rules.** Apply concedes, eliminate at 6, seal goals, test the win condition.
 
 The engine never reads a clock. `GameScene` accumulates real frame time and calls `step` a
-whole number of times at exactly `1/120 s`, then renders an interpolation between the previous
-and current state so motion stays smooth on a 60 or 120 Hz display regardless.
+whole number of times, then renders an interpolation between the previous and current state so
+motion stays smooth on a 60 or 120 Hz display regardless.
+
+A goal ends its step immediately: once the ball is through, there is nothing left to simulate,
+and the concede is applied before anything else can happen.
 
 ## 5. Inputs, and why bots use the same struct
 
