@@ -81,7 +81,17 @@ final class GameScene: SKScene {
     required init?(coder: NSCoder) { fatalError("not supported") }
 
     override func didMove(to view: SKView) {
+        // A scene that has just been presented is holding nobody's thumb. Without this, a
+        // touch that began before the scene existed — during the transition out of the menu,
+        // say — can leave the stick engaged with no finger on it, and the player walks off on
+        // their own.
+        touch.cancelAll()
         build()
+    }
+
+    override func willMove(from view: SKView) {
+        touch.cancelAll()
+        sfx.stop()
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
