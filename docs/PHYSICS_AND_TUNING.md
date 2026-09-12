@@ -49,15 +49,23 @@ players off the wall feels broken when you are simply trying to run along your o
 positional correction split by mass so overlapping bodies separate without jitter. Posts are
 infinite mass — they never move, so the whole impulse goes into the moving body.
 
-**Tunnelling.** Only the ball is fast enough to matter: at 17 m/s it moves 14 cm per step, which
-is larger than the ball itself. The goal test therefore solves the crossing analytically rather
-than sampling positions — see below. Post contacts use a swept test against the segment the
-ball travelled, not just its endpoint.
+**Sweeping.** At 120 Hz nothing here can tunnel: the fastest legal shot moves 14 cm per step,
+well under the 46 cm capture diameter of a post, so a contact can never be skipped over
+entirely. What an endpoint-only test *does* miss is a **graze** — a path that clips the edge of
+a post and is back out again before the step ends, which happens whenever the path passes
+between about 22 and 23 cm from a post centre. Those are exactly the deflections a player
+notices, so post contacts are swept against the segment the ball travelled rather than tested
+at its endpoint.
 
 ## 5. The goal crossing, exactly
 
-This is the one place where an approximation would be felt by the player, so it is solved
-properly. With the ball at `p₀` moving to `p₁ = p₀ + v·dt`, find `t ∈ [0,1]` where
+A goal is decided by the *bearing* at which the ball crossed the line, and over one step near
+the line the bearing swings by up to `0.14 / 11 = 0.013 rad`, or 0.74°. A mouth's half-width is
+6.26°, so taking the bearing from where the ball ended up rather than from where it actually
+crossed is wrong by up to **12% of the half-mouth**. That is the margin between a goal and the
+inside of a post, so it is solved properly rather than approximated.
+
+With the ball at `p₀` moving to `p₁ = p₀ + v·dt`, find `t ∈ [0,1]` where
 `|p₀ + t·(p₁ − p₀)| = R`:
 
 ```
@@ -66,8 +74,13 @@ t = (−b + √(b² − 4ac)) / 2a
 ```
 
 Take the crossing point `p₀ + t·Δ`, compute its bearing, and test *that* angle against the
-mouth spans. Testing the before or after position instead would let a hard shot appear to pass
-through a post, or score from a mouth it only travelled past.
+mouth spans.
+
+Note the two radii are different and both are needed. The ball **rebounds** when its edge
+reaches the paint, at `R − ballRadius`; it has **scored** only once its centre is past `R`,
+which on a wall bearing can never happen. Collapsing them into one radius would either let the
+ball rebound off the open air inside a mouth, or let it roll a centimetre past the paint on a
+wall and count.
 
 ## 6. The tuning table
 

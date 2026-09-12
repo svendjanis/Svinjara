@@ -9,14 +9,14 @@ Status: `todo` · `wip` · `done`
 
 ## Epic A — Foundations
 
-### A1 · Project builds and boots — `todo`
+### A1 · Project builds and boots — `done`
 **As a developer** I want a generated Xcode project that builds and launches, so every later
 story has somewhere to land.
 - `xcodegen generate` produces `Svinjara.xcodeproj`; it is git-ignored.
 - `xcodebuild … build` succeeds with no warnings for the app and test targets.
 - App launches on the iPhone 17 Pro simulator to a placeholder scene, portrait-locked.
 
-### A2 · Vector and RNG primitives — `todo`
+### A2 · Vector and RNG primitives — `done`
 **As a developer** I want `Vec2` and a seeded generator, so the simulation can be exact and
 reproducible.
 - `Vec2` covers add/sub/scale/dot/length/normalise/rotate/angle, plus a safe `normalized` that
@@ -29,7 +29,7 @@ reproducible.
 
 ## Epic B — The circle
 
-### B1 · Arena geometry — `todo`
+### B1 · Arena geometry — `done`
 **As a player** I want a circular pitch with five goals on the line, so the game has a shape.
 - `ArenaGeometry` exposes radius, five goal bearings 72° apart, and each mouth's angular span
   derived from the chord width.
@@ -38,14 +38,14 @@ reproducible.
 - Tests: spans do not overlap; total mouth arc is under a third of the circle; sealing a goal
   makes its span read as wall.
 
-### B2 · Players cannot leave — `todo`
+### B2 · Players cannot leave — `done`
 **As a player** I want to be stopped by the white line, so the pitch contains the game.
 - Position clamps to `R − playerRadius`; radial velocity zeroed, tangential kept.
 - Running at the line diagonally slides along it and does not stick or bounce.
 - Running at a goal mouth is stopped the same as wall — mouths are not doorways for players.
 - Tests: a player driven outward for 5 s never exceeds the radius; tangential speed is retained.
 
-### B3 · Ball rebounds off the line — `todo`
+### B3 · Ball rebounds off the line — `done`
 **As a player** I want the ball to stay in play, so a five-way scrap never stops.
 - Ball reflects about the inward normal with wall restitution.
 - Angle of incidence equals angle of reflection to within 1e-9 for a non-sealed wall hit.
@@ -53,7 +53,7 @@ reproducible.
 - Tests: reflection angles at several incidences; energy never increases; a ball fired at the
   wall 10 000 times never ends up outside the circle.
 
-### B4 · Posts are solid — `todo`
+### B4 · Posts are solid — `done`
 **As a player** I want to hear it come back off the post, so shooting has luck and drama.
 - Ten static post discs; swept test against the ball's travel segment, not just its endpoint.
 - Players also collide with posts and cannot pass through a mouth's frame.
@@ -64,7 +64,7 @@ reproducible.
 
 ## Epic C — Football
 
-### C1 · Run — `todo`
+### C1 · Run — `done`
 **As a player** I want responsive running, so the game feels good before anything else does.
 - Acceleration toward input, capped top speed, friction when input is released.
 - Facing turns toward travel at a limited rate rather than snapping.

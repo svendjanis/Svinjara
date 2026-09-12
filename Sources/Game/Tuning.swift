@@ -1,0 +1,93 @@
+import Foundation
+
+/// Every number the simulation reads. Documented in `docs/PHYSICS_AND_TUNING.md` — if a value
+/// moves here, that table moves with it.
+///
+/// A struct with defaults rather than a `static let` wall, so a balance test can build a
+/// variant and run a few hundred matches against it without touching global state.
+struct Tuning: Equatable {
+
+    // MARK: Step
+
+    /// The simulation always advances in slices of exactly this length. The renderer
+    /// accumulates real frame time and calls `step` a whole number of times; it never passes
+    /// a frame duration in, because then the result would depend on the display refresh rate.
+    var fixedStep: Double = 1.0 / 120.0
+
+    // MARK: Arena
+
+    var pitchRadius: Double = 11.0
+    /// Straight-line width of a goal mouth. Converted to an angular span by `ArenaGeometry`.
+    var goalMouthChord: Double = 2.4
+    var postRadius: Double = 0.12
+    var goalCount: Int = 5
+
+    // MARK: Ball
+
+    var ballRadius: Double = 0.11
+    /// Rolling resistance, as exponential decay per second. Concrete is fast — grass would be
+    /// nearer 1.4, and the ball would die in midfield instead of rattling around the circle.
+    var ballDamping: Double = 0.68
+    var wallRestitution: Double = 0.72
+    var postRestitution: Double = 0.85
+    /// Below this the ball is simply stopped, so it never creeps for ever at 0.001 m/s.
+    var ballRestThreshold: Double = 0.15
+    var ballMaxSpeed: Double = 22.0
+
+    // MARK: Player
+
+    var playerRadius: Double = 0.42
+    var playerAcceleration: Double = 26.0
+    var playerTopSpeed: Double = 5.6
+    /// Applied only when there is no steering input — see `PlayerPhysics.integrate`.
+    var playerFriction: Double = 8.0
+    var playerTurnRate: Double = 12.0
+    var playerRestitution: Double = 0.30
+
+    // MARK: Kick
+
+    var kickChargeTime: Double = 0.55
+    var kickMinSpeed: Double = 6.0
+    var kickMaxSpeed: Double = 17.0
+    /// Added to the two radii to give the distance at which the ball is "at your feet".
+    var kickReachPadding: Double = 0.35
+    var kickArc: Double = 60 * .pi / 180
+    /// Below this charge fraction a release is a soft touch, not a shot.
+    var softTouchThreshold: Double = 0.15
+    var dribbleSpeed: Double = 3.2
+
+    // MARK: Dash
+
+    var dashDoubleTapWindow: Double = 0.26
+    var dashDuration: Double = 0.22
+    var dashSpeed: Double = 9.5
+    var dashCooldown: Double = 1.6
+    var dashShoveImpulse: Double = 4.5
+    var staggerDuration: Double = 0.4
+    /// How much steering authority a staggered player keeps.
+    var staggerControl: Double = 0.35
+
+    // MARK: Match
+
+    var concedesToElimination: Int = 6
+    var celebrationDuration: Double = 1.2
+    /// Home spot distance from the centre, as a fraction of the pitch radius.
+    var homeSpotFraction: Double = 0.55
+
+    static let `default` = Tuning()
+
+    // MARK: Derived
+
+    /// Time to go from standstill to top speed under full input. ~0.22 s.
+    var timeToTopSpeed: Double { playerTopSpeed / playerAcceleration }
+
+    /// Time for a player at top speed to decay to 1% of it with no input. ~0.58 s.
+    var timeToStop: Double { log(100) / playerFriction }
+
+    /// How close the ball must be to be kickable.
+    var kickReach: Double { playerRadius + ballRadius + kickReachPadding }
+
+    /// Distance covered by one dash. ~2.1 m — enough to reach a shot at the far post of your
+    /// own mouth, not enough to cross the pitch with.
+    var dashDistance: Double { dashSpeed * dashDuration }
+}
