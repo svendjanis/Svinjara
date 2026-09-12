@@ -77,7 +77,13 @@ struct Tuning: Equatable {
     var stagnationTimeout: Double = 7.0
     var stagnationRadius: Double = 2.0
     /// Home spot distance from the centre, as a fraction of the pitch radius.
-    var homeSpotFraction: Double = 0.55
+    ///
+    /// Deep on purpose. At 0.55 everyone stood 4.3 m *in front of* their own mouth, which left
+    /// all five goals undefended at the instant of every kickoff — whoever won the race to the
+    /// centre had a free shot at any of them, and 19% of all goals arrived within two seconds
+    /// of a restart. Starting on your own line means a restart begins with the goals guarded,
+    /// which is what a restart should look like.
+    var homeSpotFraction: Double = 0.88
 
     static let `default` = Tuning()
 

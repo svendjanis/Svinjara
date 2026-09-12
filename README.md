@@ -33,6 +33,21 @@ xcodebuild -project Svinjara.xcodeproj -scheme Svinjara \
 `Svinjara.xcodeproj` is generated and git-ignored — `project.yml` is the source of truth, so
 project settings diff cleanly and never conflict.
 
+## Run it on a real device
+
+```bash
+xcodegen generate
+xcodebuild -project Svinjara.xcodeproj -scheme Svinjara \
+           -destination 'platform=iOS,id=<device udid>' \
+           -derivedDataPath build-device -allowProvisioningUpdates build
+xcrun devicectl device install app --device <device udid> \
+      build-device/Build/Products/Debug-iphoneos/Svinjara.app
+```
+
+`xcrun devicectl list devices` prints the udid. The app is landscape-only, so hold the phone
+sideways: left thumb anywhere on the left half to run, right thumb to charge a shot, and
+double-tap that thumb to lunge.
+
 ## Tests
 
 ```bash

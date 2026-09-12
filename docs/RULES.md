@@ -38,8 +38,9 @@ while inside the angular span of a mouth belonging to a **live** player.
 
 1. Play freezes for a 1.2 s celebration; the concede is applied immediately, not after the pause.
 2. Ball returns to the centre spot, at rest.
-3. Every live player returns to their home spot: `0.55 R` along their own goal's bearing, facing
-   the centre. Velocity zeroed, charge cancelled, dash cooldown cleared, stagger cleared.
+3. Every live player returns to their home spot: `0.88 R` along their own goal's bearing —
+   1.1 m off their own line — facing the centre. Deep on purpose: restarting in front of your
+   own goal leaves every mouth open to whoever wins the race to the ball. Velocity zeroed, charge cancelled, dash cooldown cleared, stagger cleared.
 4. Play resumes for everyone at the same instant. There is no kickoff possession — it is a race
    to the centre and that is intended.
 

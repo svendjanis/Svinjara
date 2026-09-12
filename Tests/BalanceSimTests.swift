@@ -116,6 +116,60 @@ final class BalanceSimTests: XCTestCase {
                           "hard finishes \(hard)th on average, easy \(easy)th — the scale is inverted")
     }
 
+    /// A restart must not simply hand somebody a goal.
+    ///
+    /// With the home spots at 0.55 R every player stood 4.3 m in front of their own mouth, so
+    /// all five goals were undefended at the instant of every kickoff and 19% of all goals
+    /// arrived within two seconds of a restart — you would barely see the ball touch the
+    /// centre spot before it was in somebody's net again.
+    func testNoGoalArrivesImmediatelyAfterARestart() {
+        var tooSoon = 0
+        var measured = 0
+
+        for seed in 0..<12 {
+            var engine = MatchFixture.engine(tuning: tuning)
+            var brains = (0..<5).map { BotBrain(index: $0, difficulty: .normal, seed: UInt64(seed) &* 7919 &+ 13) }
+            var sinceRestart: Double? = 0   // the opening kickoff counts
+
+            for _ in 0..<MatchFixture.steps(forSeconds: 900) {
+                let inputs = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
+                for event in engine.step(inputs: inputs) {
+                    switch event {
+                    case .conceded:
+                        if let gap = sinceRestart {
+                            measured += 1
+                            if gap < 1.5 { tooSoon += 1 }
+                        }
+                        sinceRestart = nil
+                    case .resumed:
+                        sinceRestart = 0
+                    default:
+                        break
+                    }
+                }
+                if sinceRestart != nil { sinceRestart! += tuning.fixedStep }
+                if engine.state.isOver { break }
+            }
+        }
+
+        XCTAssertGreaterThan(measured, 100, "not enough restarts to judge")
+        XCTAssertLessThan(Double(tooSoon) / Double(measured), 0.02,
+                          "\(tooSoon) of \(measured) goals came within 1.5 s of a restart")
+    }
+
+    /// The other half of the same property: everyone starts guarding their own line.
+    func testEveryoneRestartsOnTheirOwnLine() {
+        let arena = ArenaGeometry(tuning: tuning)
+        for goal in 0..<arena.goalCount {
+            let home = arena.homeSpot(of: goal, fraction: tuning.homeSpotFraction)
+            let distanceToOwnLine = arena.radius - home.length
+            XCTAssertLessThan(distanceToOwnLine, 2.0,
+                              "player \(goal) restarts \(distanceToOwnLine) m off their own line")
+            XCTAssertGreaterThan(distanceToOwnLine, tuning.playerRadius,
+                                 "and not standing in the goal itself")
+        }
+    }
+
     /// Progress is a rule, not a hope. A ball pinned against the paint cannot be struck along
     /// the wall, so without this the match can simply stop.
     func testAPinnedBallIsReturnedToTheCentre() {

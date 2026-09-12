@@ -152,7 +152,7 @@ construct a variant without touching global state.
 |---|---|
 | Concedes to elimination | 6 |
 | Celebration pause | 1.2 s |
-| Home spot radius | 0.55 R |
+| Home spot radius | 0.88 R |
 | Stagnation timeout | 7 s |
 | Stagnation radius | 2 m |
 
@@ -170,6 +170,11 @@ Start from physical plausibility, then tune against the numbers that matter to t
 - **Dash 9.5 m/s for 0.22 s** covers ~2.1 m — just enough to reach a shot aimed at the far post
   of your own mouth, and not enough to cross the pitch with it.
 - **6 concedes** puts a full match at 24 goals minimum.
+- **Home spot 0.88 R**, so a player restarts 1.1 m from their own line rather than 4.3 m in
+  front of it. At 0.55 R every goal was undefended at the instant of a kickoff and 19% of all
+  goals arrived inside two seconds of one. Depth was swept: below about 0.85 R the restart is
+  effectively a scripted goal — the gap from restart to goal collapses onto a single value
+  around 2.2 s — and above it a real scramble opens up (p10 2.4 s, median 5.4 s).
 
 ### What the sweep actually said
 

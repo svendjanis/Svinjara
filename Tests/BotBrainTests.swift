@@ -170,23 +170,40 @@ final class BotBrainTests: XCTestCase {
         XCTAssertGreaterThan(outcome.goals, 0, "nobody scored in two minutes")
     }
 
-    func testNoBotStandsStillForFiveSeconds() {
+    /// A bot must not go to sleep *when it has something to do*.
+    ///
+    /// The condition matters. An earlier version of this test simply forbade standing still
+    /// for five seconds, and it started failing the moment players began restarting on their
+    /// own line rather than four metres in front of it — because a defender holding station
+    /// while the ball is fifteen metres away at the far side of the circle is doing exactly
+    /// the right thing. Standing still is only a bug if you are the one who should be moving.
+    func testNoBotFallsAsleepWithTheBallOnTopOfIt() {
         var engine = MatchFixture.engine()
         var brains = (0..<5).map { BotBrain(index: $0, difficulty: .normal, seed: 8) }
         var idleFor = [Int](repeating: 0, count: 5)
-        let limit = MatchFixture.steps(forSeconds: 5)
+        let limit = MatchFixture.steps(forSeconds: 3)
 
-        for _ in 0..<MatchFixture.steps(forSeconds: 120) {
+        for _ in 0..<MatchFixture.steps(forSeconds: 180) {
             let inputs = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
             let before = engine.state
             engine.step(inputs: inputs)
             guard engine.state.phase.isPlaying, before.phase.isPlaying else { continue }
 
+            // Whoever is nearest the ball is the one with something to do.
+            let contender = engine.state.players
+                .filter(\.isAlive)
+                .min { $0.body.position.distance(to: engine.state.ball.position)
+                     < $1.body.position.distance(to: engine.state.ball.position) }?.index
+
             for index in 0..<5 where engine.state.players[index].isAlive {
                 let moved = engine.state.players[index].body.position
                     .distance(to: before.players[index].body.position)
-                idleFor[index] = moved < 1e-4 ? idleFor[index] + 1 : 0
-                XCTAssertLessThan(idleFor[index], limit, "player \(index) went to sleep")
+                let hasBusiness = index == contender
+                    && !engine.state.players[index].isStaggered
+
+                idleFor[index] = (moved < 1e-4 && hasBusiness) ? idleFor[index] + 1 : 0
+                XCTAssertLessThan(idleFor[index], limit,
+                                  "player \(index) is nearest the ball and has not moved")
             }
             if engine.state.isOver { break }
         }
