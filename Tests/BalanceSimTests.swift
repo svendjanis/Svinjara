@@ -47,6 +47,9 @@ final class BalanceSimTests: XCTestCase {
         let median = lengths[lengths.count / 2]
         XCTAssertGreaterThan(median, 120, "matches are over before anyone settles in")
         XCTAssertLessThan(median, 360, "median match has drifted past the 3–5 minute band")
+        // The band is what `concedesToElimination` is set from, not the other way round —
+        // see the note there. Slowing the game down and teaching the bots to press both cost
+        // time, and the threshold came down from six to four to pay for them.
 
         // The tail is where stalls show up first. It is looser than it was because redemption
         // slows the rate at which tallies grow — a match where everyone keeps clawing one back
@@ -118,15 +121,51 @@ final class BalanceSimTests: XCTestCase {
                           "hard finishes \(hard)th on average, easy \(easy)th — the scale is inverted")
     }
 
-    /// A restart must not simply hand somebody a goal.
+    /// A restart must not simply hand somebody a goal — and it must not hand one to everybody
+    /// at the same moment either.
     ///
-    /// With the home spots at 0.55 R every player stood 4.3 m in front of their own mouth, so
-    /// all five goals were undefended at the instant of every kickoff and 19% of all goals
-    /// arrived within two seconds of a restart — you would barely see the ball touch the
-    /// centre spot before it was in somebody's net again.
+    /// This test used to ask only whether a goal arrived within 1.5 s, and passed cleanly
+    /// while 26% of every goal in the game was landing at 2.25–2.50 s. A single threshold
+    /// cannot see that, because the thing it is looking for is not "soon", it is "always at
+    /// the same moment": five players the same distance from a ball on the centre spot, all
+    /// starting from a standstill, run the same race and end it the same way every time. So
+    /// the shape of the distribution is what is asserted, not one point on it.
     func testNoGoalArrivesImmediatelyAfterARestart() {
-        var tooSoon = 0
-        var measured = 0
+        let gaps = restartToGoalGaps()
+        XCTAssertGreaterThan(gaps.count, 100, "not enough restarts to judge")
+
+        let tooSoon = gaps.filter { $0 < 1.5 }.count
+        XCTAssertLessThan(Double(tooSoon) / Double(gaps.count), 0.02,
+                          "\(tooSoon) of \(gaps.count) goals came within 1.5 s of a restart")
+    }
+
+    /// The one the single threshold could not see: no single moment after a restart may own a
+    /// large share of the goals in the game.
+    ///
+    /// A quarter-second bucket is narrower than the spread of anything a person does, so a
+    /// tall one is a script rather than a pattern of play. Before the goal-kick restart the
+    /// tallest held 26% of all goals; a flat-ish distribution puts 3–4% in each.
+    func testNoSingleMomentAfterARestartOwnsTheGoals() {
+        let gaps = restartToGoalGaps()
+        XCTAssertGreaterThan(gaps.count, 100, "not enough restarts to judge")
+
+        var worst = (start: 0.0, share: 0.0)
+        for bucket in 0..<40 {
+            let start = Double(bucket) * 0.25
+            let share = Double(gaps.filter { $0 >= start && $0 < start + 0.25 }.count)
+                / Double(gaps.count)
+            if share > worst.share { worst = (start, share) }
+        }
+
+        XCTAssertLessThan(worst.share, 0.10,
+                          String(format: "%.0f%% of all goals arrive %.2f–%.2f s after a restart",
+                                 worst.share * 100, worst.start, worst.start + 0.25))
+    }
+
+    /// Seconds from each restart to the goal that ended it. Restarts that ended some other way
+    /// — the match finishing, the cap running out — contribute nothing.
+    private func restartToGoalGaps() -> [Double] {
+        var gaps: [Double] = []
 
         for seed in 0..<12 {
             var engine = MatchFixture.engine(tuning: tuning)
@@ -138,10 +177,7 @@ final class BalanceSimTests: XCTestCase {
                 for event in engine.step(inputs: inputs) {
                     switch event {
                     case .conceded:
-                        if let gap = sinceRestart {
-                            measured += 1
-                            if gap < 1.5 { tooSoon += 1 }
-                        }
+                        if let gap = sinceRestart { gaps.append(gap) }
                         sinceRestart = nil
                     case .resumed:
                         sinceRestart = 0
@@ -153,10 +189,7 @@ final class BalanceSimTests: XCTestCase {
                 if engine.state.isOver { break }
             }
         }
-
-        XCTAssertGreaterThan(measured, 100, "not enough restarts to judge")
-        XCTAssertLessThan(Double(tooSoon) / Double(measured), 0.02,
-                          "\(tooSoon) of \(measured) goals came within 1.5 s of a restart")
+        return gaps
     }
 
     /// The other half of the same property: everyone starts guarding their own line.

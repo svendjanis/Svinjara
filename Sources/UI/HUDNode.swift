@@ -2,8 +2,9 @@ import SpriteKit
 
 /// The standings, readable without looking away from the ball.
 ///
-/// Five chips in goal order, each a kit colour and six pips. No numbers and no names: a row of
-/// dots is read faster than a digit, and the whole point is that a glance is enough.
+/// Five chips in goal order, each a kit colour and one pip per concede allowed. No numbers and
+/// no names: a row of dots is read faster than a digit, and the whole point is that a glance is
+/// enough.
 final class HUDNode: SKNode {
 
     private struct Chip {

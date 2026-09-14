@@ -24,12 +24,26 @@ final class BallPhysicsTests: XCTestCase {
     }
 
     /// Concrete, not grass: a struck ball is still moving properly after two seconds.
-    func testAStruckBallStillCarriesAfterTwoSeconds() {
+    /// Concrete is fast, and the test of that is a distance rather than a speed: a full-power
+    /// shot has to be able to reach the far side of the circle. `kickMaxSpeed / ballDamping`
+    /// is how far a struck ball can ever travel, and if it is under the pitch diameter then
+    /// two of the four goals you are attacking are simply out of range from your own end.
+    ///
+    /// This used to assert a speed after two seconds, which measured the same property only
+    /// so long as nobody moved either number.
+    func testAFullPowerShotCanCrossThePitch() {
+        let reach = tuning.kickMaxSpeed / tuning.ballDamping
+        XCTAssertGreaterThan(reach, tuning.pitchRadius * 2,
+                             "a struck ball dies before it can cross the circle")
+
         var ball = BallState(position: .zero, velocity: Vec2(x: tuning.kickMaxSpeed, y: 0))
         for _ in 0..<Int(2.0 / tuning.fixedStep) {
             BallPhysics.integrate(&ball, dt: tuning.fixedStep, tuning: tuning)
         }
-        XCTAssertGreaterThan(ball.velocity.length, 4)
+        XCTAssertGreaterThan(ball.position.x, tuning.pitchRadius,
+                             "two seconds should carry it past the centre and out the far side")
+        XCTAssertGreaterThan(ball.velocity.length, tuning.ballRestThreshold,
+                             "and it is still rolling, not dead on the paint")
     }
 
     func testABallBelowTheRestThresholdIsStopped() {

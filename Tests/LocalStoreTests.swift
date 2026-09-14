@@ -172,18 +172,28 @@ final class EarlyExitTests: XCTestCase {
     private let tuning = Tuning.default
 
     /// Plays until player 0 is knocked out, which is the moment the app stops the match.
+    /// A state in which the human has gone out *and the match is still running*, which is the
+    /// only case where the standings alone cannot say where they finished.
+    ///
+    /// Several seeds, because the human going out fourth ends the match in the same step —
+    /// a perfectly ordinary result, and one that this particular test has nothing to say
+    /// about. A single seed made it a coin toss whether there was anything to check.
     private func stateWhenHumanIsOut() -> (MatchState, Int)? {
-        var engine = MatchFixture.engine(tuning: tuning)
-        var brains = (0..<5).map { BotBrain(index: $0, difficulty: .normal, seed: 33) }
+        for seed in UInt64(1)...24 {
+            var engine = MatchFixture.engine(tuning: tuning)
+            var brains = (0..<5).map { BotBrain(index: $0, difficulty: .normal, seed: seed &* 33) }
 
-        for _ in 0..<MatchFixture.steps(forSeconds: 900) {
-            let inputs = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
-            for event in engine.step(inputs: inputs) {
-                if case .eliminated(let player, let place) = event, player == 0 {
+            for _ in 0..<MatchFixture.steps(forSeconds: 900) {
+                let inputs = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
+                for event in engine.step(inputs: inputs) {
+                    guard case .eliminated(let player, let place) = event, player == 0 else {
+                        continue
+                    }
+                    guard engine.state.aliveCount > 1 else { break }
                     return (engine.state, place)
                 }
+                if engine.state.isOver { break }
             }
-            if engine.state.isOver { return nil }
         }
         return nil
     }

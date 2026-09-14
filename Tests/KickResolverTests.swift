@@ -249,4 +249,63 @@ final class KickResolverTests: XCTestCase {
                             assisted: true, ball: &ball, arena: arena, tuning: tuning)
         XCTAssertEqual(Angles.separation(ball.velocity.angle, corrected), 0, accuracy: 1e-6)
     }
+    // MARK: Dribbling
+
+    /// Two circles meeting send the ball off along the line between their centres, so a touch
+    /// taken a few centimetres off-line puts the ball further off-line still and the next
+    /// touch compounds it. A foot points where its owner is running, and steering the push
+    /// that way is what makes successive touches converge on "in front of me".
+    func testAnOffCentreTouchIsSteeredTowardTheWayYouAreRunning() {
+        let heading = Vec2(x: 1, y: 0)
+        let body = PlayerBody(position: .zero, velocity: heading * 4, facing: 0)
+
+        // The ball sits forward and off to one side, so the contact normal points at 45°.
+        let contact = Vec2(angle: .pi / 4, length: tuning.playerRadius + tuning.ballRadius - 0.01)
+        var ball = BallState(position: contact)
+        XCTAssertTrue(KickResolver.resolveBodyContact(player: 2, body: body, ball: &ball,
+                                                       tuning: tuning))
+
+        let pushed = ball.velocity.angle
+        XCTAssertGreaterThan(Angles.separation(pushed, .pi / 4), 0.01,
+                             "the push is not simply along the contact normal")
+        XCTAssertLessThan(Angles.separation(pushed, heading.angle),
+                          Angles.separation(.pi / 4, heading.angle),
+                          "and it leans toward the direction of travel")
+    }
+
+    /// Capped, not absolute: running past a ball still only clips it. Without the cap a player
+    /// could drag the ball round a corner it was never near.
+    func testTheGatherCannotTurnTheBallAllTheWayOntoYourHeading() {
+        let body = PlayerBody(position: .zero, velocity: Vec2(x: 4, y: 0), facing: 0)
+        let normal = Vec2(angle: .pi / 2)
+        let push = KickResolver.gathered(normal: normal, body: body, tuning: tuning)
+
+        XCTAssertEqual(Angles.separation(normal.angle, push.angle), tuning.dribbleGather,
+                       accuracy: 1e-9)
+    }
+
+    /// A player stood still has no direction of travel, so the figure's facing is the only
+    /// heading there is — and it must not produce a NaN.
+    func testAStationaryPlayerGathersTowardTheirFacing() {
+        let body = PlayerBody(position: .zero, velocity: .zero, facing: 0.7)
+        let push = KickResolver.gathered(normal: Vec2(angle: 0.7 + 0.2), body: body,
+                                         tuning: tuning)
+        XCTAssertFalse(push.x.isNaN)
+        XCTAssertEqual(Angles.separation(push.angle, 0.7), 0, accuracy: 1e-9,
+                       "0.2 rad is inside the cap, so it lands exactly on the facing")
+    }
+
+    /// Carrying the ball must still be carrying it, not magnetism: the ball only ever takes a
+    /// fraction of the speed you ran into it with, whichever way the push is steered.
+    func testTheGatherDoesNotMakeTheBallFasterThanTheCarrier() {
+        let speed = 4.0
+        let body = PlayerBody(position: .zero, velocity: Vec2(x: speed, y: 0), facing: 0)
+        var ball = BallState(position: Vec2(x: tuning.playerRadius + tuning.ballRadius - 0.01,
+                                            y: 0))
+        KickResolver.resolveBodyContact(player: 0, body: body, ball: &ball, tuning: tuning)
+
+        XCTAssertEqual(ball.velocity.length, speed * tuning.dribbleGrip, accuracy: 1e-9)
+        XCTAssertLessThan(ball.velocity.length, speed, "the ball never outruns its carrier")
+    }
+
 }

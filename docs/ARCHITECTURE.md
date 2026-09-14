@@ -124,6 +124,11 @@ the only channel a bot has. A bot therefore cannot teleport, cannot exceed the h
 speed and cannot kick further, because none of those are expressible in the struct. Fairness is
 a property of the type, not of anyone's restraint.
 
+It cuts the other way too, and usefully. Bots are given a `pace` below 1 — they hold the stick
+a little short of the rim — and that needed no new mechanism at all, because "how hard the
+stick is pushed" is already what `move`'s magnitude means. A handicap that has to be expressed
+through the same channel is a handicap you can be sure is real.
+
 It also means a match can be driven entirely from a recorded array of input frames, which is
 what makes `DeterminismTests` and `BalanceSimTests` possible.
 

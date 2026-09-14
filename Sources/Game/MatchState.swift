@@ -57,6 +57,31 @@ struct MatchState: Equatable {
     var stagnationAnchor: Vec2 = .zero
     var stagnationTimer: Double = 0
 
+    /// Who restarts play: the player the goal was scored against. They take a goal kick — the
+    /// ball is placed in front of their own mouth and they stand behind it. Everybody else
+    /// lines up on their own goal.
+    ///
+    /// A restart used to put all five players the same distance from a ball on the centre
+    /// spot, which is a five-way sprint with a free shot at four unguarded mouths as the
+    /// prize. It was not a rare accident either — measured over 24 bot matches, 26% of every
+    /// goal in the game arrived in the same quarter-second of every restart, 2.25–2.50 s
+    /// after the whistle. The same race, won by the same run, ending the same way.
+    ///
+    /// Restarting from the conceder's own goal answers it at the geometry rather than at the
+    /// AI: there is no race, because the ball is already at somebody's feet, and there is no
+    /// quick goal available, because from there the nearest rival mouth is ten metres away
+    /// with all five players stood on their own lines. It is also the fair direction to
+    /// resolve it — the restart is small compensation for the goal just conceded.
+    ///
+    /// `nil` for the opening kickoff, which nobody has earned and which is played from the
+    /// centre spot, and for a restart whose taker was eliminated by the goal that caused it.
+    var restartTaker: Int?
+
+    /// How many times play has been restarted. Only ever read as the seed for the line-up
+    /// nudge in `MatchEngine.resetForKickoff` — see there for why a restart must not look
+    /// exactly like the last one.
+    var restartCount: Int = 0
+
     var alivePlayers: [PlayerState] { players.filter(\.isAlive) }
     var aliveCount: Int { players.reduce(0) { $0 + ($1.isAlive ? 1 : 0) } }
 

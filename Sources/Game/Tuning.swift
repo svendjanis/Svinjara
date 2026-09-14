@@ -27,18 +27,33 @@ struct Tuning: Equatable {
     var ballRadius: Double = 0.11
     /// Rolling resistance, as exponential decay per second. Concrete is fast — grass would be
     /// nearer 1.4, and the ball would die in midfield instead of rattling around the circle.
-    var ballDamping: Double = 0.68
+    ///
+    /// Raised a little along with the general slowdown: a ball that keeps running after
+    /// everyone else has slowed down is a ball nobody can settle on, and settling on it is the
+    /// whole game. Only a little, though — a full-power shot still has to be able to cross the
+    /// pitch, and `kickMaxSpeed / ballDamping` is what says whether it can. At 0.80 it could
+    /// not, and a game where the far goal is out of range is a game with two fewer targets.
+    var ballDamping: Double = 0.72
     var wallRestitution: Double = 0.72
     var postRestitution: Double = 0.85
     /// Below this the ball is simply stopped, so it never creeps for ever at 0.001 m/s.
     var ballRestThreshold: Double = 0.15
-    var ballMaxSpeed: Double = 22.0
+    var ballMaxSpeed: Double = 19.0
 
     // MARK: Player
 
     var playerRadius: Double = 0.42
-    var playerAcceleration: Double = 26.0
-    var playerTopSpeed: Double = 5.6
+
+    /// Acceleration and top speed are separate on purpose, and only the ceiling came down in
+    /// the slowdown.
+    ///
+    /// The circle is 19 m across. At 5.6 m/s a player crossed the whole of it in 3.4 seconds,
+    /// which left no time to read where the ball was going to end up — it was a scramble
+    /// rather than a game. At 4.5 it takes 4.2 s. Acceleration was cut in the same proportion
+    /// so the time from standstill to top speed is unchanged at ~0.21 s: the game is slower,
+    /// but the stick answers exactly as fast as it did.
+    var playerAcceleration: Double = 21.0
+    var playerTopSpeed: Double = 4.5
     /// Applied only when there is no steering input — see `PlayerPhysics.integrate`.
     var playerFriction: Double = 8.0
     var playerTurnRate: Double = 12.0
@@ -48,8 +63,8 @@ struct Tuning: Equatable {
 
     var kickChargeTime: Double = 0.55
     /// A bare tap still has to feel like a shot, not a nudge.
-    var kickMinSpeed: Double = 8.5
-    var kickMaxSpeed: Double = 17.0
+    var kickMinSpeed: Double = 7.5
+    var kickMaxSpeed: Double = 15.0
     /// Added to the two radii to give the distance at which the ball is "at your feet".
     var kickReachPadding: Double = 0.50
     /// Generous, because a thumb steers the facing and a person cannot hold a heading to the
@@ -69,12 +84,28 @@ struct Tuning: Equatable {
     /// Under 1 on purpose: at 1 the ball leaves at exactly your speed and runs away from you
     /// for as long as it takes rolling resistance to bring it back, which is what made
     /// carrying it feel like herding. Below 1 it always settles back at your feet.
-    var dribbleGrip: Double = 0.78
+    var dribbleGrip: Double = 0.72
+
+    /// How far the push from a body contact may be steered toward the way the player is
+    /// actually running, in radians.
+    ///
+    /// A circle pushes the ball off along the line between the two centres, so a touch taken
+    /// half a step off-line sends the ball sideways — and because that leaves it further off
+    /// line, the next touch sends it further still. Contact alone diverges, which is the
+    /// honest reason carrying the ball felt like herding even after the grip was fixed.
+    ///
+    /// A foot is not a circle: it points where its owner is going. Steering the push toward
+    /// the direction of travel makes successive touches converge on "in front of me", which
+    /// is what dribbling is. Capped rather than absolute, so running past a ball still only
+    /// brushes it — you cannot drag it round a corner it never went near.
+    var dribbleGather: Double = 0.55
 
     // MARK: Dash
 
-    var dashDuration: Double = 0.22
-    var dashSpeed: Double = 9.5
+    /// Slowed with everything else, and lengthened to match, so a lunge still covers the same
+    /// ~2.1 m of ground it always did.
+    var dashDuration: Double = 0.27
+    var dashSpeed: Double = 7.7
     var dashCooldown: Double = 1.6
     var dashShoveImpulse: Double = 4.5
     var staggerDuration: Double = 0.4
@@ -83,7 +114,23 @@ struct Tuning: Equatable {
 
     // MARK: Match
 
-    var concedesToElimination: Int = 6
+    /// How many you may let in before you walk home.
+    ///
+    /// Six, until the bots learned to defend. Elimination needs somebody to *fall behind*,
+    /// and redemption means a goal only grows the table when its scorer is already on zero.
+    /// That was fine against bots that conceded in lumps — a restart used to hand somebody
+    /// three in a minute. Once pressing and a restart that is not a free shot spread the
+    /// goals evenly, the table stopped growing: measured over 80 easy matches, 4.4 goals a
+    /// minute were being scored while the total tally climbed by 1.3, so reaching six took
+    /// thirteen minutes and one match in ten never got there inside fifteen.
+    ///
+    /// The number is the cheap half of that trade. Turning redemption off entirely puts six
+    /// back in the band at a 239 s median — it is that rule, not the pace, that costs the
+    /// time — but redemption is what stops camping on your own line being the winning move,
+    /// so the threshold gives way instead. At four the median match is 284 s and the longest
+    /// of 240 measured was 471 s, which is the three-to-five minutes the game is designed
+    /// around. See `docs/PHYSICS_AND_TUNING.md` §7.
+    var concedesToElimination: Int = 4
 
     /// Scoring takes one back off your own tally, floored at zero.
     ///
@@ -103,6 +150,20 @@ struct Tuning: Equatable {
     /// ago, it is returned to the centre spot. See `docs/RULES.md` §10.
     var stagnationTimeout: Double = 7.0
     var stagnationRadius: Double = 2.0
+
+    /// Where a goal kick is placed, as a fraction of the pitch radius.
+    ///
+    /// See `MatchState.restartTaker` for why the player who conceded restarts play at all.
+    /// 0.78 puts the ball about 2.1 m in front of their own line — clear of their own posts,
+    /// and about 10 m from the nearest rival mouth, which is what makes a goal straight from
+    /// a restart geometrically uninteresting rather than merely unlikely.
+    var goalKickFraction: Double = 0.78
+
+    /// How far off their line a player may be nudged at a restart, as a fraction of the pitch
+    /// radius. See `MatchEngine.resetForKickoff` — this is what stops every restart being the
+    /// same restart. Sideways spread is the width of the player's own mouth, so it is always
+    /// their own goal they are stood in front of.
+    var kickoffSpread: Double = 0.06
     /// Home spot distance from the centre, as a fraction of the pitch radius.
     ///
     /// Deep on purpose. At 0.55 everyone stood 4.3 m *in front of* their own mouth, which left

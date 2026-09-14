@@ -119,7 +119,7 @@ reproducible.
 
 ### D3 · Elimination seals a goal — `done`
 **As a player** I want a knocked-out rival's goal bricked up, so the pitch changes as we go.
-- At 6 conceded the player is removed during that same celebration.
+- At 4 conceded the player is removed during that same celebration.
 - Their arc becomes wall for ball and players; posts removed.
 - Arena radius and every other goal's position are unchanged.
 - Tests: the 6th concede eliminates; a ball fired at the sealed arc rebounds; survivors' counts

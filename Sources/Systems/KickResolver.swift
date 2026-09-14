@@ -94,10 +94,31 @@ enum KickResolver {
         let carried = body.velocity.dot(normal) * tuning.dribbleGrip
         guard carried > 0 else { return true }
 
-        let along = ball.velocity.dot(normal)
+        // Where the push goes is not where the contact was.
+        //
+        // Two circles meeting send the ball off along the line between their centres, so a
+        // touch taken a few centimetres off-line puts the ball further off-line still, and the
+        // next touch compounds it. That divergence is what carrying the ball actually felt
+        // like, and no amount of grip fixes it: grip sets how fast the ball leaves, not which
+        // way. A foot points where its owner is running, so the push is steered toward the
+        // direction of travel — by at most `dribbleGather`, so a player sprinting past a ball
+        // still only clips it.
+        let push = gathered(normal: normal, body: body, tuning: tuning)
+
+        let along = ball.velocity.dot(push)
         if carried > along {
-            ball.velocity += normal * (carried - along)
+            ball.velocity += push * (carried - along)
         }
         return true
+    }
+
+    /// The contact normal, rotated toward the way the player is travelling.
+    static func gathered(normal: Vec2, body: PlayerBody, tuning: Tuning) -> Vec2 {
+        // Stood still, the only heading there is is the one the figure is pointing.
+        let travel = body.velocity.lengthSquared > 1e-6 ? body.velocity.normalized
+                                                        : Vec2(angle: body.facing)
+        let offset = Angles.delta(from: normal.angle, to: travel.angle)
+        let limit = tuning.dribbleGather
+        return Vec2(angle: normal.angle + max(-limit, min(limit, offset)))
     }
 }

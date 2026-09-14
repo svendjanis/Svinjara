@@ -1,13 +1,13 @@
 # Svinjara
 
 Five players, one ball, one concrete circle, five little goals on the white line. Everyone
-against everyone — the first to let six in walks home, and the last one standing wins.
+against everyone — the first to let four in walks home, and the last one standing wins.
 
 Native SpriteKit + SwiftUI, no third-party dependencies, no backend, no database. Everything
 lives on the device.
 
 Pick one of 20 footballing nations, then it's a free-for-all. You defend your own goal and
-attack the other four. Left thumb runs, right thumb charges the shot, double-tap it to lunge.
+attack the other four. Left thumb runs; SHOOT and TACKLE sit under the right one.
 
 ## Requirements
 
@@ -45,8 +45,8 @@ xcrun devicectl device install app --device <device udid> \
 ```
 
 `xcrun devicectl list devices` prints the udid. The app is landscape-only, so hold the phone
-sideways: left thumb anywhere on the left half to run, right thumb to charge a shot, and
-double-tap that thumb to lunge.
+sideways: left thumb anywhere on the left half to run, and the SHOOT and TACKLE buttons under
+the right one.
 
 ## Tests
 

@@ -47,17 +47,31 @@ while inside the angular span of a mouth belonging to a **live** player.
 ## 4. Restart after a goal
 
 1. Play freezes for a 1.2 s celebration; the concede is applied immediately, not after the pause.
-2. Ball returns to the centre spot, at rest.
-3. Every live player returns to their home spot: `0.88 R` along their own goal's bearing —
+2. **The player who conceded restarts, with a goal kick.** The ball is placed at `0.78 R` on
+   their own goal's bearing — 2.1 m in front of their own line — and they stand one contact
+   behind it, facing the centre. It is already at their feet; there is nothing to race for.
+3. Every other live player returns to their home spot: `0.88 R` along their own goal's bearing —
    1.1 m off their own line — facing the centre. Deep on purpose: restarting in front of your
    own goal leaves every mouth open to whoever wins the race to the ball. Velocity zeroed, charge cancelled, dash cooldown cleared, stagger cleared.
-4. Play resumes for everyone at the same instant. There is no kickoff possession — it is a race
-   to the centre and that is intended.
+4. **Every line-up is nudged** — up to ±0.06 R in depth and half a mouth sideways, so nobody
+   stops guarding their own goal, and no two restarts in a match present the same picture.
+5. Play resumes for everyone at the same instant.
+
+The **opening kickoff** is the exception: nobody has earned it, so the ball is on the centre
+spot and everyone starts at home. So is a restart whose taker was eliminated by the goal that
+caused it — handing it to somebody else would be arbitrary, so it reverts to a scramble.
+
+Why the conceder gets it: a restart used to put all five players the same distance from a ball
+on the centre spot, which is a five-way sprint with a free shot at four unguarded mouths as the
+prize. Measured, 26% of every goal in the game arrived in the same quarter-second of every
+restart. Giving the ball to whoever was just scored against removes the race, and removes it in
+the direction that is also fair — the restart is small compensation for the goal. See
+`docs/PHYSICS_AND_TUNING.md` §7.3.
 
 ## 5. Elimination
 
-- On reaching **6 conceded**, the player is eliminated **immediately** — at the moment of the
-  sixth concede, during the same celebration pause.
+- On reaching **4 conceded**, the player is eliminated **immediately** — at the moment of the
+  fourth concede, during the same celebration pause.
 - The eliminated player is removed from the pitch. They cannot be collided with and take no
   further part.
 - **Their goal mouth seals into solid wall.** Its posts are removed with it: the arc becomes

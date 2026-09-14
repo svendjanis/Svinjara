@@ -257,4 +257,132 @@ final class BotBrainTests: XCTestCase {
         XCTAssertEqual(first.goals, second.goals)
         XCTAssertEqual(first.seconds, second.seconds)
     }
+    /// Every tier holds the stick a little short of the rim, so the person holding the phone
+    /// is the fastest thing on the pitch when they want to be. See `BotDifficulty.pace`.
+    func testABotNeverRunsAtFullTilt() {
+        var engine = MatchFixture.engine()
+        var brains = (0..<5).map { BotBrain(index: $0, difficulty: .hard, seed: 12) }
+        var sawMovement = false
+
+        for _ in 0..<MatchFixture.steps(forSeconds: 60) {
+            let inputs = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
+            for (index, input) in inputs.enumerated() where input.move.lengthSquared > 1e-9 {
+                sawMovement = true
+                XCTAssertLessThanOrEqual(input.move.length,
+                                         brains[index].difficulty.pace + 1e-9)
+            }
+            engine.step(inputs: inputs)
+            if engine.state.isOver { break }
+        }
+        XCTAssertTrue(sawMovement, "nobody moved, so nothing was measured")
+    }
+
+    /// A bot must not take a shot simply because it is the best one available — the best
+    /// available is often dreadful. Standing over the ball on your own line with every rival
+    /// at home is exactly that case, and hitting it from there is what a restart used to be.
+    func testABotCarriesRatherThanTakingAHopelessShot() {
+        let arena = ArenaGeometry(tuning: tuning)
+        // The ball on player 0's own goal-kick spot, at their feet, everyone else at home.
+        let spot = Vec2(angle: arena.bearings[0], length: arena.radius * tuning.goalKickFraction)
+        var state = Position.make(ball: spot, players: [
+            0: Vec2(angle: arena.bearings[0],
+                    length: arena.radius * tuning.goalKickFraction
+                            + tuning.playerRadius + tuning.ballRadius),
+        ])
+        state.players[0].body.facing = Angles.normalize(arena.bearings[0] + .pi)
+
+        var brain = BotBrain(index: 0, difficulty: .normal, seed: 4)
+        var struck = false
+        for _ in 0..<MatchFixture.steps(forSeconds: 0.8) {
+            if brain.decide(state: state, tuning: tuning).kickReleased { struck = true }
+        }
+        XCTAssertFalse(struck, "a goal kick is not a shooting opportunity")
+    }
+
+    /// Whatever the bot remembers about where the ball was, a restart is not the moment to
+    /// act on it: what the buffer holds while a goal is celebrated is the ball crossing a
+    /// line, and carrying that over means shooting at a position the ball is nowhere near.
+    func testABotDoesNotStillSeeTheBallInTheNetAfterARestart() {
+        var engine = MatchFixture.engine()
+        var brains = (0..<5).map { BotBrain(index: $0, difficulty: .hard, seed: 6) }
+        var resumed = false
+
+        for _ in 0..<MatchFixture.steps(forSeconds: 300) {
+            let inputs = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
+            let events = engine.step(inputs: inputs)
+            if events.contains(.resumed) { resumed = true; break }
+        }
+        XCTAssertTrue(resumed, "no goal was ever scored")
+
+        // The step after the whistle: nobody may be trying to kick a ball they are not near.
+        let inputs = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
+        for (index, input) in inputs.enumerated() where input.kickReleased {
+            XCTAssertTrue(KickResolver.canStrike(body: engine.state.players[index].body,
+                                                 ball: engine.state.ball, tuning: tuning),
+                          "player \(index) swung at a ball that is not there")
+        }
+    }
+
+    /// Closing the ball down is for the next nearest player, and nobody else. Sending
+    /// everybody leaves five goals empty, which is the failure this game started with;
+    /// sending nobody means a ball at somebody's feet crosses the whole pitch unopposed,
+    /// which is what it did before pressing existed.
+    ///
+    /// Two at once is allowed and briefly happens: each bot ranks itself using its own
+    /// slightly stale view of where the ball is, and holds a decision for a moment after
+    /// making it, so two can believe they are second nearest while the ball changes hands.
+    /// Three would mean the ranking is not doing its job.
+    func testPressingIsForTheNextNearestPlayerAndNobodyElse() {
+        var engine = MatchFixture.engine()
+        var brains = (0..<5).map { BotBrain(index: $0, difficulty: .normal, seed: 21) }
+        var pressSteps = 0
+        var steps = 0
+
+        for _ in 0..<MatchFixture.steps(forSeconds: 240) {
+            let inputs = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
+            let pressing = brains.filter { $0.currentMode == .press }.count
+            XCTAssertLessThanOrEqual(pressing, 2, "\(pressing) players left their goal at once")
+            pressSteps += pressing
+            steps += 1
+            engine.step(inputs: inputs)
+            if engine.state.isOver { break }
+        }
+
+        let average = Double(pressSteps) / Double(steps)
+        XCTAssertLessThan(average, 1.05, "on average \(average) players are chasing the ball")
+        XCTAssertGreaterThan(average, 0.2, "nobody ever closes anybody down")
+    }
+
+    /// The case the ranking exists for: at a restart the four players who are not taking it
+    /// stand at identical distances from the ball, and a `<=` made every one of them the
+    /// second nearest — all four charged, and the kickoff was a five-way sprint leaving five
+    /// empty mouths, which is the exact thing the goal kick exists to prevent.
+    func testNobodyAbandonsTheirGoalAtARestart() {
+        var engine = MatchFixture.engine()
+        var brains = (0..<5).map { BotBrain(index: $0, difficulty: .normal, seed: 21) }
+        var restarts = 0
+
+        for _ in 0..<MatchFixture.steps(forSeconds: 300) {
+            let inputs = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
+            guard engine.step(inputs: inputs).contains(.resumed) else {
+                if engine.state.isOver { break }
+                continue
+            }
+            // The taker is going for it by definition — it is already at their feet. The
+            // question is how many of the other four leave their line to join in.
+            guard let taker = engine.state.restartTaker else { continue }
+            restarts += 1
+            _ = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
+
+            let chasing = brains.filter {
+                $0.index != taker && ($0.currentMode == .press || $0.currentMode == .attack)
+            }
+            XCTAssertLessThanOrEqual(chasing.count, 1,
+                                     "\(chasing.count) players left their own goal at a restart")
+            XCTAssertEqual(brains[taker].currentMode, .attack, "the taker has the ball")
+            if engine.state.isOver { break }
+        }
+        XCTAssertGreaterThan(restarts, 5, "not enough restarts to judge")
+    }
+
 }

@@ -51,6 +51,46 @@ final class TouchControllerTests: XCTestCase {
         XCTAssertEqual(touch.consume().move.length, 1, accuracy: 1e-9)
     }
 
+    /// The stick follows the thumb once the thumb leaves the ring.
+    ///
+    /// Without this the origin stays where the thumb first landed and the heading is measured
+    /// from there for as long as the finger is down — so a thumb dragged well past the rim has
+    /// to be dragged all the way back before it can point anywhere else. You ask for left, and
+    /// keep running right.
+    func testTheStickFollowsAThumbThatLeavesTheRing() {
+        var touch = controller()
+        touch.touchDown(id: 1, at: .zero)
+        touch.touchMoved(id: 1, to: Vec2(x: 300, y: 0))
+
+        XCTAssertEqual(touch.stickOrigin?.x ?? 0, 250, accuracy: 1e-9,
+                       "the origin is dragged up to one radius behind the thumb")
+        XCTAssertEqual(touch.consume().move.angle, 0, accuracy: 1e-9)
+    }
+
+    func testAFlickBackAfterALongDragTurnsImmediately() {
+        var touch = controller()
+        touch.touchDown(id: 1, at: .zero)
+        touch.touchMoved(id: 1, to: Vec2(x: 300, y: 0))
+        // A thumb that has run a long way right, now asked for hard left.
+        touch.touchMoved(id: 1, to: Vec2(x: 200, y: 0))
+
+        let move = touch.consume().move
+        XCTAssertEqual(Angles.separation(move.angle, .pi), 0, accuracy: 1e-9,
+                       "a 100 pt flick back must mean left, not a slightly slower right")
+        XCTAssertEqual(move.length, 1, accuracy: 1e-9)
+    }
+
+    /// The stick never drifts while the thumb is inside the ring, or a slow circling thumb
+    /// would tow the origin around with it and lose the centre.
+    func testTheStickDoesNotMoveWhileTheThumbIsInsideTheRing() {
+        var touch = controller()
+        touch.touchDown(id: 1, at: Vec2(x: 100, y: 100))
+        for point in [Vec2(x: 130, y: 100), Vec2(x: 100, y: 140), Vec2(x: 70, y: 90)] {
+            touch.touchMoved(id: 1, to: point)
+            XCTAssertEqual(touch.stickOrigin, Vec2(x: 100, y: 100))
+        }
+    }
+
     func testTinyMovementsAreHoldingStillNotWalking() {
         var touch = controller()
         touch.touchDown(id: 1, at: Vec2(x: 100, y: 100))

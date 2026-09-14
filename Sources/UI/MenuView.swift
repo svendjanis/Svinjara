@@ -9,7 +9,7 @@ struct MenuView: View {
                 Text("SVINJARA")
                     .font(.custom("AvenirNextCondensed-Bold", size: 64))
                     .foregroundStyle(Color(Theme.paint))
-                Text("Five goals. Four rivals. Let six in and you walk home.")
+                Text("Five goals. Four rivals. Let four in and you walk home.")
                     .font(.custom("AvenirNextCondensed-Medium", size: 17))
                     .foregroundStyle(Color(Theme.paint).opacity(0.65))
 

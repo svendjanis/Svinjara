@@ -35,6 +35,18 @@ struct PlayerInput: Equatable {
 
     static let idle = PlayerInput()
 
+    /// The same input with the stick pushed only `fraction` of the way to the rim.
+    ///
+    /// Bots steer by pointing a unit vector at where they want to be, which is a stick held
+    /// hard against the rim for the whole match. This is how `BotDifficulty.pace` is applied,
+    /// and it is deliberately the *only* way it can be: the heading is untouched, so it
+    /// changes how fast a bot runs and nothing else.
+    func paced(by fraction: Double) -> PlayerInput {
+        var copy = self
+        copy.move = move * max(0, min(1, fraction))
+        return copy
+    }
+
     static func running(_ direction: Vec2) -> PlayerInput {
         PlayerInput(move: direction)
     }
