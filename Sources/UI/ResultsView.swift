@@ -95,8 +95,8 @@ struct ResultsView: View {
     }
 }
 
-/// Six pips, filling as they let them in. No numbers — the eye reads a row of dots faster than
-/// it reads a digit, which matters when this is also the in-match HUD.
+/// One pip per concede allowed, filling as they let them in. No numbers — the eye reads a row
+/// of dots faster than it reads a digit, which matters when this is also the in-match HUD.
 struct ConcededPips: View {
     let conceded: Int
     var colour: UIColor = Theme.paint

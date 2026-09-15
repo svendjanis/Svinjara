@@ -3,7 +3,7 @@
 ## 1. The pitch in one sentence
 
 Five players, one ball, one concrete circle, five little goals on the line — everyone against
-everyone, and the first to let six in walks home.
+everyone, and the first to let four in walks home.
 
 ## 2. Where the name comes from
 
@@ -24,9 +24,10 @@ kick off  →  scrap for the ball  →  pick a victim  →  shoot
               one player left → winner
 ```
 
-A match is roughly three to five minutes: 24 goals have to be scored before four players are
-eliminated, and the pitch gets emptier — and each remaining goal proportionally more exposed —
-as it goes.
+A match is roughly three to five minutes: sixteen marks have to be handed out before four
+players are eliminated, and a good many more goals than that scored to do it, since every goal
+you score wipes one off your own tally. The pitch gets emptier — and each remaining goal
+proportionally more exposed — as it goes.
 
 ## 4. What makes it interesting
 
@@ -108,16 +109,35 @@ enough to confuse at a glance — clashing kits are re-rolled.
 
 ## 8. Difficulty
 
-Three tiers, differing only in reaction latency, aim error and how eagerly bots spend the dash.
-No bot gets extra speed, extra power, or knowledge the player doesn't have — bots submit the
-exact same input struct the human's thumbs produce. This is a fairness rule and it is enforced
-by the type system, not by discipline.
+Four tiers' worth of knobs across three tiers: reaction latency, aim error, how eagerly bots
+spend the dash, and how good a chance they hold out for before shooting. No bot gets extra
+speed, extra power, or knowledge the player doesn't have — bots submit the exact same input
+struct the human's thumbs produce. This is a fairness rule and it is enforced by the type
+system, not by discipline.
 
-| | Reaction | Aim error σ | Dash appetite |
-|---|---|---|---|
-| Easy | 150 ms | 9° | 0.15 |
-| Normal | 90 ms | 5° | 0.30 |
-| Hard | 45 ms | 2.5° | 0.45 |
+| | Reaction | Aim error σ | Dash appetite | Shot bar | Carry patience |
+|---|---|---|---|---|---|
+| Easy | 150 ms | 9° | 0.15 | 0.55 | 1.2 s |
+| Normal | 90 ms | 5° | 0.30 | 0.75 | 1.8 s |
+| Hard | 45 ms | 2.5° | 0.45 | 0.95 | 2.4 s |
+
+**Every tier runs at 93% of full tilt**, and that is a handicap rather than a hidden advantage:
+`move` already means "how hard the stick is pushed", so a bot holding it a touch short of the
+rim is something a person does too. It exists because five players all running flat out all the
+time read as a machine rather than as opponents, and because the person holding the phone
+should be the fastest thing on the pitch when they want to be.
+
+It is deliberately *not* a difficulty axis. It briefly was — 0.88 for easy up to 0.97 for hard
+— and it was the wrong knob twice over: a slower bot defends as badly as it attacks, so the
+tiers barely separated, and because slow play spreads the goals evenly an all-easy match
+stopped being able to knock anybody out at all. Eight of eighty never reached a winner inside
+fifteen minutes.
+
+**The shot bar is what stops a bot hitting the best shot available when the best available is
+dreadful.** Below it, the thing to do is carry the ball until something better appears; carry
+patience is the escape valve, and it measures *lack of progress* rather than time on the ball,
+so a bot running up the pitch with it is not on a clock. Without the distinction a goal kick
+was simply hoofed the instant the count expired, from ten metres inside the taker's own half.
 
 **Reaction is perception lag**, not thinking frequency: a bot steers toward the ball as it was
 that long ago. The distinction is not academic. Modelled as "how often the bot reconsiders" it

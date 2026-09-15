@@ -209,9 +209,11 @@ final class CollisionTests: XCTestCase {
         let contactRadius = tuning.ballRadius + tuning.postRadius
         let step = tuning.kickMaxSpeed * tuning.fixedStep
 
-        // Offset chosen so the chord through the contact circle is shorter than one step.
-        let offset = 0.222
-        let halfChord = (contactRadius * contactRadius - offset * offset).squareRoot()
+        // Offset derived rather than written down, so the premise survives a change to how
+        // hard the ball can be hit: the chord through the contact circle has to be shorter
+        // than one step, or the endpoints would catch it and there would be nothing to test.
+        let halfChord = step * 0.35
+        let offset = (contactRadius * contactRadius - halfChord * halfChord).squareRoot()
         XCTAssertLessThan(2 * halfChord, step, "this path must clear the post within one step")
 
         var position = Vec2(x: post.x - halfChord - 0.01, y: offset)

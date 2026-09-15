@@ -7,19 +7,28 @@ final class MatchEngineTests: XCTestCase {
 
     // MARK: Setup
 
+    /// Near their home spot rather than exactly on it: every line-up is nudged, so that no two
+    /// restarts in a match present the same picture. See `MatchEngine.resetForKickoff`.
     func testEveryoneStartsInFrontOfTheirOwnGoalFacingTheMiddle() {
         let engine = MatchFixture.engine()
         for player in engine.state.players {
-            let expected = engine.state.arena.homeSpot(of: player.index,
-                                                       fraction: tuning.homeSpotFraction)
-            XCTAssertEqual(player.body.position, expected)
+            let home = engine.state.arena.homeSpot(of: player.index,
+                                                   fraction: tuning.homeSpotFraction)
+            let drift = player.body.position.distance(to: home)
+            XCTAssertLessThan(drift, tuning.pitchRadius * tuning.kickoffSpread
+                                     + engine.state.arena.mouthHalfAngle * tuning.pitchRadius,
+                              "player \(player.index) starts nowhere near their own goal")
             XCTAssertEqual(player.conceded, 0)
             XCTAssertTrue(player.isAlive)
+
+            // Whatever the nudge did, the mouth they are stood in front of is still their own.
+            XCTAssertEqual(engine.state.arena.openGoal(atBearing: player.body.position.angle),
+                           player.index)
 
             let towardCentre = (Vec2.zero - player.body.position).angle
             XCTAssertEqual(Angles.separation(player.body.facing, towardCentre), 0, accuracy: 1e-9)
         }
-        XCTAssertEqual(engine.state.ball.position, .zero)
+        XCTAssertEqual(engine.state.ball.position, .zero, "the opening kickoff is from the spot")
         XCTAssertEqual(engine.state.phase, .playing)
     }
 
@@ -194,6 +203,11 @@ final class MatchEngineTests: XCTestCase {
                 XCTAssertLessThanOrEqual(player.body.position.length, limit + 1e-6)
                 XCTAssertFalse(player.body.position.x.isNaN)
             }
+
+            // The ball is only inside the line while the ball is in play. A goal leaves it
+            // sitting past the paint for the whole celebration, because that is what being in
+            // the net means — asserting through a goal was measuring the net, not the rule.
+            guard engine.state.phase.isPlaying else { continue }
             XCTAssertLessThanOrEqual(engine.state.ball.position.length,
                                      tuning.pitchRadius + 1e-6)
         }

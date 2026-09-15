@@ -14,11 +14,17 @@ struct MatchEngine {
         self.tuning = tuning
 
         let arena = ArenaGeometry(tuning: tuning)
+        // Nobody has earned the opening kickoff, so it is a scramble — see
+        // `MatchState.restartTaker`.
+        var nudge = SeededRandom(seed: 0)
         let players = nations.enumerated().map { index, nation in
             PlayerState(index: index,
                         nation: nation,
                         appearance: AppearanceFactory.make(seed: appearanceSeed &+ UInt64(index) &* 0x9E37_79B9),
-                        body: MatchEngine.homeBody(goal: index, arena: arena, tuning: tuning))
+                        body: MatchEngine.restartBody(goal: index, taker: nil,
+                                                      takerBearing: nil,
+                                                      arena: arena, tuning: tuning,
+                                                      nudge: &nudge))
         }
         self.state = MatchState(arena: arena, players: players)
     }
@@ -331,12 +337,20 @@ struct MatchEngine {
             events.append(.redeemed(player: scorer))
         }
 
+        // The restart belongs to whoever was just scored against — the tie-break that stops a
+        // kickoff being a five-way sprint for a free shot. Set before the elimination check,
+        // and cleared again below if this goal is the one that knocks them out.
+        state.restartTaker = goal
+
         if state.players[goal].conceded >= tuning.concedesToElimination {
             state.players[goal].isAlive = false
             state.arena.seal(goal)
             state.eliminationOrder.append(goal)
             events.append(.eliminated(player: goal,
                                       place: state.players.count - state.eliminationOrder.count + 1))
+            // A player who has walked home cannot take the kickoff. Handing it to somebody
+            // else would be arbitrary, so the restart reverts to a scramble.
+            state.restartTaker = nil
         }
 
         // The concede that knocks out the fourth player ends the match in the same step —
@@ -351,11 +365,37 @@ struct MatchEngine {
         state.phase = .celebrating(remaining: tuning.celebrationDuration)
     }
 
-    /// Puts everything back exactly where a kickoff starts, whatever happened before it.
+    /// Puts everything back where a restart starts, whatever happened before it.
+    ///
+    /// Two restarts that begin from identical positions with everybody at a standstill play
+    /// out identically, because nothing downstream of this is random: the same run wins the
+    /// same race and ends with the same shot. Measured, that is not a figure of speech — 26%
+    /// of every goal in the game used to arrive in the same quarter-second of every restart.
+    ///
+    /// The goal kick is the structural half of the answer, and the nudge is the rest of it:
+    /// each player is moved a little along their own arc and a little off their own line, so
+    /// no two restarts present the same picture. The nudge is drawn from a generator seeded
+    /// with the restart number, which keeps the engine a pure function of its state — the
+    /// same match replays identically, while no two restarts within it are the same. Nobody
+    /// is moved far enough to stop guarding their own mouth.
     private mutating func resetForKickoff() {
-        state.ball = BallState()
-        state.stagnationAnchor = .zero
+        state.restartCount += 1
+        var nudge = SeededRandom(seed: UInt64(state.restartCount) &* 0x9E37_79B9_7F4A_7C15)
+
+        // The taker's own bearing is nudged too, and the ball and the taker both hang off it,
+        // so a goal kick is taken from a slightly different spot in the mouth each time
+        // without the taker ever being off the ball at the whistle.
+        let takerBearing = state.restartTaker.map {
+            Angles.normalize(state.arena.bearings[$0]
+                             + nudge.double(in: -state.arena.mouthHalfAngle...state.arena.mouthHalfAngle))
+        }
+
+        state.ball = BallState(position: Self.restartSpot(bearing: takerBearing,
+                                                          arena: state.arena,
+                                                          tuning: tuning))
+        state.stagnationAnchor = state.ball.position
         state.stagnationTimer = 0
+
         for index in state.players.indices {
             state.players[index].charge = 0
             state.players[index].isCharging = false
@@ -364,14 +404,47 @@ struct MatchEngine {
             state.players[index].dashDirection = .zero
             state.players[index].staggerRemaining = 0
             guard state.players[index].isAlive else { continue }
-            state.players[index].body = MatchEngine.homeBody(goal: index,
-                                                             arena: state.arena,
-                                                             tuning: tuning)
+            state.players[index].body = MatchEngine.restartBody(goal: index,
+                                                                taker: state.restartTaker,
+                                                                takerBearing: takerBearing,
+                                                                arena: state.arena,
+                                                                tuning: tuning,
+                                                                nudge: &nudge)
         }
     }
 
-    private static func homeBody(goal: Int, arena: ArenaGeometry, tuning: Tuning) -> PlayerBody {
-        let home = arena.homeSpot(of: goal, fraction: tuning.homeSpotFraction)
+    /// Where the ball is placed for a restart: in front of the conceding player's own mouth
+    /// for a goal kick, and on the centre spot for the opening kickoff, which nobody has
+    /// earned.
+    private static func restartSpot(bearing: Double?, arena: ArenaGeometry, tuning: Tuning) -> Vec2 {
+        guard let bearing else { return .zero }
+        return Vec2(angle: bearing, length: arena.radius * tuning.goalKickFraction)
+    }
+
+    /// Where a player lines up for a restart: behind the ball if the goal kick is theirs, and
+    /// otherwise on their own line. Either way they face the centre.
+    private static func restartBody(goal: Int, taker: Int?, takerBearing: Double?,
+                                    arena: ArenaGeometry, tuning: Tuning,
+                                    nudge: inout SeededRandom) -> PlayerBody {
+        // The taker stands one contact behind the ball on the same bearing, so the ball is
+        // already at their feet and already pointing up the pitch. No run to win, and nothing
+        // to win it against.
+        if goal == taker, let bearing = takerBearing {
+            let back = arena.radius * tuning.goalKickFraction + tuning.playerRadius + tuning.ballRadius
+            return PlayerBody(position: Vec2(angle: bearing, length: back),
+                              velocity: .zero,
+                              facing: Angles.normalize(bearing + .pi))
+        }
+
+        let spread = tuning.kickoffSpread
+        // Sideways is kept to half a mouth. Wider and a player stood square in front of their
+        // own goal starts to read as having left it — `ShotEvaluator` scores exposure as
+        // distance from the middle of the mouth, which cannot tell "off my line" apart from
+        // "over by my left post" — and inviting a shot is the opposite of what this is for.
+        let sideways = arena.mouthHalfAngle * 0.5
+        let home = arena.homeSpot(of: goal, fraction: tuning.homeSpotFraction
+                                                      + nudge.double(in: -spread...spread))
+            .rotated(by: nudge.double(in: -sideways...sideways))
         return PlayerBody(position: home,
                           velocity: .zero,
                           facing: Angles.normalize(home.angle + .pi))

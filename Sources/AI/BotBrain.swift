@@ -8,6 +8,8 @@ enum BotMode: Equatable {
     case defend
     /// I am nearest, or near enough; go and hit it at somebody.
     case attack
+    /// Somebody else got there first and I am next nearest; go and take it off them.
+    case press
     /// Somebody else has it covered; hold a useful position rather than crowding the ball.
     case recover
 }
@@ -29,6 +31,11 @@ struct BotBrain {
     private var holdingKick = false
     /// How long we have been stood over the ball without getting a shot away.
     private var dithering: Double = 0
+    /// How long I have been getting nowhere with the ball, how long I am prepared to keep
+    /// getting nowhere before taking whatever shot is on, and where the carry last got to.
+    private var possession: Double = 0
+    private var patience: Double = 0
+    private var carryAnchor: Vec2 = .zero
     /// How long the current shot has been committed to.
     private var shotAge: Double = 0
     /// How long the current mode has been held.
@@ -38,6 +45,11 @@ struct BotBrain {
     ///
     /// Stops the attack/defend decision chattering when a distance wobbles on the boundary.
     private static let minimumDwell: Double = 0.30
+
+    /// How far away a ball may be and still be worth closing down, as a fraction of the way
+    /// across the pitch. Beyond it, the second nearest player is not pressing — they are just
+    /// leaving their goal to chase something at the far side of the circle.
+    private static let pressRange: Double = 0.70
 
     private(set) var currentMode: BotMode = .recover
 
@@ -51,6 +63,7 @@ struct BotBrain {
         let me = state.players[index]
         guard me.isAlive, state.phase.isPlaying else {
             holdingKick = false
+            forgetEverythingBeforeTheWhistle()
             return .idle
         }
         if me.isStaggered {
@@ -80,14 +93,86 @@ struct BotBrain {
         reconsider(state: seen, tuning: tuning)
         currentMode = mode
 
+        keepPossession(me: me, live: state, tuning: tuning)
+
+        let input: PlayerInput
         switch mode {
         case .stagger, .recover:
-            return recovering(me: me, state: seen, tuning: tuning)
+            input = recovering(me: me, state: seen, tuning: tuning)
         case .defend:
-            return defending(me: me, state: seen, live: state, tuning: tuning)
+            input = defending(me: me, state: seen, live: state, tuning: tuning)
+        case .press:
+            input = pressing(me: me, state: seen, tuning: tuning)
         case .attack:
-            return attacking(me: me, state: seen, live: state, tuning: tuning)
+            input = attacking(me: me, state: seen, live: state, tuning: tuning)
         }
+        // Every tier holds the stick a little short of the rim. See `BotDifficulty.pace`.
+        return input.paced(by: difficulty.pace)
+    }
+
+    /// Whatever I was in the middle of, a restart is a new situation.
+    ///
+    /// Two separate things used to survive the whistle and both of them misfired.
+    ///
+    /// The perception buffer is the worse one: what it holds while a goal is being celebrated
+    /// is the ball crossing a line, so every bot spent the first fraction of a second after
+    /// the restart believing the ball was still in the net — long enough to commit to a shot
+    /// from a position the ball was nowhere near, and `commitShot` then held that plan for
+    /// six tenths of a second more. Measured, it alone accounted for 8.6% of every goal in
+    /// the game arriving within two seconds of a restart, nearly half of them own goals off a
+    /// defender who was in the way of a ball nobody had meant to hit there. Clearing it took
+    /// that to 2.0%.
+    ///
+    /// The commitment is the milder one: a mode is held for `minimumDwell` before it may be
+    /// reconsidered, and since the clock does not run during a celebration, a decision taken
+    /// a tenth of a second before the goal was still binding a tenth of a second after it.
+    private mutating func forgetEverythingBeforeTheWhistle() {
+        seenRecently.removeAll(keepingCapacity: true)
+        possession = 0
+        dithering = 0
+        shot = nil
+        mode = .recover
+        // Free to decide again on the very first step of the restart, rather than being held
+        // to whatever was true while the ball was in somebody's net.
+        modeAge = Self.minimumDwell
+    }
+
+    /// Tracks how long I have been getting nowhere with the ball at my feet.
+    ///
+    /// Asked of the real ball rather than the remembered one: perception lag is about seeing
+    /// across the pitch, and the ball against your own foot is not something you see late.
+    ///
+    /// The clock measures *lack of progress*, not time in possession, and the difference is
+    /// the whole point. A first version simply counted seconds on the ball, and a bot taking
+    /// a goal kick therefore hoofed it the instant the count expired — from ten metres inside
+    /// its own half, at a mouth it had no business shooting at. Measured, that alone put 8.5%
+    /// of every goal in the game within two seconds of a restart. Running up the pitch with
+    /// the ball is not dithering on it, so getting somewhere restarts the clock; only a
+    /// carrier who has actually stopped making ground runs out of patience.
+    ///
+    /// Progress is the same distance the rules already call progress, and for the same
+    /// reason. A bot that dribbles in circles resets its own clock for ever, which is exactly
+    /// the case `MatchEngine.enforceProgress` exists to end.
+    ///
+    /// The patience itself is jittered because a fixed one only moves the problem: bots that
+    /// all hold the ball for exactly 1.8 s produce a restart that ends at exactly 1.8 s,
+    /// which is the same scripted goal with a different timestamp on it.
+    private mutating func keepPossession(me: PlayerState, live: MatchState, tuning: Tuning) {
+        // A little wider than kicking range, so a touch that runs the ball a step ahead of you
+        // does not read as having lost it.
+        let mine = me.body.position.distance(to: live.ball.position) <= tuning.kickReach * 1.5
+        guard mine else {
+            possession = 0
+            return
+        }
+
+        let gotSomewhere = live.ball.position.distance(to: carryAnchor) > tuning.stagnationRadius
+        if possession == 0 || gotSomewhere {
+            patience = difficulty.carryPatience * rng.double(in: 0.7...1.4)
+            carryAnchor = live.ball.position
+            possession = 0
+        }
+        possession += tuning.fixedStep
     }
 
     /// The match as this bot currently sees it: everything present, but the ball where it was
@@ -132,10 +217,11 @@ struct BotBrain {
 
         let me = state.players[index]
         let myDistance = me.body.position.distance(to: state.ball.position)
-        let closestRival = state.players
+        let rivals = state.players
             .filter { $0.isAlive && $0.index != index }
             .map { $0.body.position.distance(to: state.ball.position) }
-            .min() ?? .infinity
+            .sorted()
+        let closestRival = rivals.first ?? .infinity
 
         // In the race for it. The margin is small on purpose: at 1.5 m two bots would both
         // commit to the same ball, end up inside kicking range of each other, and each block
@@ -148,8 +234,27 @@ struct BotBrain {
             return
         }
 
-        // Somebody else will get there first; if it is pointed at my goal, go home.
-        adopt(threat > (mode == .defend ? 0.30 : 0.45) ? .defend : .recover)
+        // Somebody else will get there first. If it is pointed at my goal, go home; otherwise,
+        // if I am the next nearest, go and close them down.
+        //
+        // Pressing was missing entirely, and its absence is why a carried ball used to cross
+        // the whole pitch unopposed: the only player who ever chased it was the one already
+        // nearest, and the other four stood on their own line waiting to be shot at. That is a
+        // queue, not a five-way scrap.
+        //
+        // Exactly one presses, and only within range. Sending everybody leaves five goals
+        // empty, which is the failure this game started with — an earlier `<=` here made every
+        // one of four equidistant players the second nearest and sent all of them at once. And
+        // a press from your own line at a ball on the far side of the circle is not a press,
+        // it is leaving.
+        let secondNearest = rivals.count > 1 && myDistance < rivals[1]
+        if threat > (mode == .defend ? 0.30 : 0.45) {
+            adopt(.defend)
+        } else if secondNearest && myDistance <= state.arena.radius * 2 * Self.pressRange {
+            adopt(.press)
+        } else {
+            adopt(.recover)
+        }
     }
 
     private mutating func adopt(_ next: BotMode) {
@@ -224,6 +329,22 @@ struct BotBrain {
         let range = state.ball.position.distance(to: shot.target)
         let wanted = min(1, max(0.45, range / 13))
 
+        // A shot has to be worth taking, and when it is not, the thing to do is carry the ball
+        // until it is.
+        //
+        // Without this a bot hit the best shot available even when the best available was
+        // dreadful, and a restart is precisely the moment when they all are: the ball is on the
+        // centre spot, every mouth is nine metres away, and the first player to arrive booted
+        // it at whichever one was least badly covered. Measured, 26% of every goal in the game
+        // arrived 2.25–2.50 s after a restart — the same race, won by the same run, ending the
+        // same way. Refusing the bad shot turns that into a carry out of the middle, which is
+        // both a better goal when it lands and a savable one when it does not.
+        //
+        // `possession` is the escape valve: hold out for a look that never comes and you end
+        // up leaning on the ball until the stagnation rule fires, which is worse than a bad
+        // shot. See `BotDifficulty.shotBar` and `carryPatience`.
+        let worthTaking = shot.score >= difficulty.shotBar || possession >= patience
+
         // Holding out for a clean look is right, but only up to a point. Against the line a
         // perfect angle may not exist at all, and two bots waiting for one will lean on the
         // ball until the match runs out — which is exactly what they did.
@@ -232,6 +353,7 @@ struct BotBrain {
         let ready = KickResolver.canStrike(body: me.body, ball: live.ball, tuning: tuning)
             && me.chargeFraction(tuning: tuning) >= wanted
             && (lined || dithering > 2.0)
+            && worthTaking
 
         if ready { dithering = 0 }
         holdingKick = !ready
@@ -271,6 +393,27 @@ struct BotBrain {
         return PlayerInput(move: Steering.seek(from: me.body.position, to: spot),
                            kickHeld: true,
                            dashRequested: desperate)
+    }
+
+    /// Run at the ball and try to take it. Not at a spot behind the ball — that is what
+    /// attacking does, and standing politely behind a ball somebody else has their foot on
+    /// achieves nothing.
+    private mutating func pressing(me: PlayerState, state: MatchState, tuning: Tuning) -> PlayerInput {
+        let gap = me.body.position.distance(to: state.ball.position)
+
+        // A lunge is worth spending at about its own length: any further and it lands short,
+        // any closer and you were going to arrive anyway.
+        let lunge = gap < tuning.dashDistance * 1.2
+            && gap > tuning.playerRadius * 2
+            && me.dashCooldown <= 0
+            && rng.bool(chance: difficulty.dashAppetite)
+
+        holdingKick = true
+        return PlayerInput(move: Steering.seek(from: me.body.position,
+                                               to: state.ball.position,
+                                               slowingRadius: 0.3),
+                           kickHeld: true,
+                           dashRequested: lunge)
     }
 
     private mutating func recovering(me: PlayerState, state: MatchState, tuning: Tuning) -> PlayerInput {

@@ -80,6 +80,22 @@ struct TouchController {
     mutating func touchMoved(id: Int, to point: Vec2) {
         guard holders[id] == .stick else { return }
         stickPoint = point
+
+        // The stick follows the thumb once the thumb leaves the ring.
+        //
+        // Without this the origin stays wherever the thumb first landed, and the heading is
+        // measured from there for as long as the finger is down. Drag 200 pt to the right and
+        // the stick is effectively pinned: a 40 pt flick back to the left moves the bearing by
+        // eleven degrees, so you ask for left and keep running right for another half second.
+        // It is the single thing that made the game feel like it was not listening.
+        //
+        // Dragging the origin up behind the thumb keeps the offset at exactly one stick
+        // radius, so full tilt stays full tilt and a change of direction is immediate.
+        guard let origin = stickOrigin else { return }
+        let offset = point - origin
+        if offset.length > layout.stickRadius {
+            stickOrigin = point - offset.normalized * layout.stickRadius
+        }
     }
 
     mutating func touchUp(id: Int) {

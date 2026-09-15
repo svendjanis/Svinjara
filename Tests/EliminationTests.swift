@@ -23,10 +23,12 @@ final class EliminationTests: XCTestCase {
 
     // MARK: Conceding and the reset
 
-    func testTheResetPutsEverythingBackWhereAKickoffStarts() {
+    /// A restart is a goal kick to whoever was just scored against, not a rerun of the
+    /// opening kickoff — so this checks what a restart actually promises rather than that it
+    /// reproduces the line-up byte for byte. See `MatchState.restartTaker`.
+    func testARestartIsAGoalKickToWhoeverConceded() {
         var engine = MatchFixture.engine()
         var brains = (0..<5).map { BotBrain(index: $0, difficulty: .normal, seed: 9) }
-        let kickoff = engine.state
 
         var resumed = false
         for _ in 0..<MatchFixture.steps(forSeconds: 300) {
@@ -35,15 +37,64 @@ final class EliminationTests: XCTestCase {
         }
         XCTAssertTrue(resumed, "no goal was ever scored")
 
-        XCTAssertEqual(engine.state.ball.position, kickoff.ball.position)
-        XCTAssertEqual(engine.state.ball.velocity, .zero)
-        XCTAssertNil(engine.state.ball.lastTouchedBy)
-        for player in engine.state.players where player.isAlive {
-            XCTAssertEqual(player.body, kickoff.players[player.index].body)
+        let state = engine.state
+        guard let taker = state.restartTaker else {
+            return XCTFail("somebody conceded, so somebody restarts")
+        }
+
+        XCTAssertEqual(state.ball.velocity, .zero)
+        XCTAssertNil(state.ball.lastTouchedBy)
+
+        // The ball is in front of the conceding player's own mouth, and at their feet.
+        XCTAssertEqual(state.arena.openGoal(atBearing: state.ball.position.angle), taker,
+                       "the goal kick is taken from the mouth that was just scored into")
+        XCTAssertEqual(state.ball.position.length,
+                       tuning.pitchRadius * tuning.goalKickFraction, accuracy: 1e-9)
+        XCTAssertEqual(state.players[taker].body.position.distance(to: state.ball.position),
+                       tuning.playerRadius + tuning.ballRadius, accuracy: 1e-9,
+                       "the taker starts with it, rather than racing anyone for it")
+
+        // And everybody else is a long way from it, on their own line. "A long way" is a
+        // second and a half of running: long enough that the taker gets a first touch and a
+        // look up, which is the whole point of giving them the restart.
+        let clear = tuning.playerTopSpeed * 1.5
+        for player in state.players where player.isAlive && player.index != taker {
+            XCTAssertGreaterThan(player.body.position.distance(to: state.ball.position), clear,
+                                 "player \(player.index) is close enough to contest a goal kick")
+            XCTAssertEqual(state.arena.openGoal(atBearing: player.body.position.angle),
+                           player.index, "everybody else guards their own")
+        }
+
+        for player in state.players where player.isAlive {
+            XCTAssertEqual(player.body.velocity, .zero)
             XCTAssertEqual(player.charge, 0)
             XCTAssertFalse(player.isDashing)
             XCTAssertFalse(player.isStaggered)
             XCTAssertEqual(player.dashCooldown, 0)
+        }
+    }
+
+    /// No two restarts in a match may present the same picture — identical positions with
+    /// everybody at a standstill replay identically, and that is how a quarter of every goal
+    /// in the game came to arrive in the same quarter-second of every restart.
+    func testNoTwoRestartsLineUpTheSameWay() {
+        var engine = MatchFixture.engine()
+        var brains = (0..<5).map { BotBrain(index: $0, difficulty: .normal, seed: 9) }
+        var lineups: [[Vec2]] = []
+
+        for _ in 0..<MatchFixture.steps(forSeconds: 600) {
+            let inputs = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
+            if engine.step(inputs: inputs).contains(.resumed) {
+                lineups.append(engine.state.players.map(\.body.position))
+            }
+            if engine.state.isOver { break }
+        }
+
+        XCTAssertGreaterThan(lineups.count, 8, "not enough restarts to judge")
+        for (a, first) in lineups.enumerated() {
+            for second in lineups[(a + 1)...] {
+                XCTAssertNotEqual(first, second, "two restarts lined up identically")
+            }
         }
     }
 
@@ -70,7 +121,7 @@ final class EliminationTests: XCTestCase {
 
     // MARK: Elimination
 
-    func testTheSixthConcedeEliminatesAndSealsTheGoal() {
+    func testTheLastConcedeEliminatesAndSealsTheGoal() {
         guard let match = played() else { return }
 
         let eliminations = match.events.compactMap { event -> (Int, Int)? in
@@ -88,7 +139,7 @@ final class EliminationTests: XCTestCase {
         XCTAssertEqual(eliminations.map(\.1), [5, 4, 3, 2], "places awarded in order")
     }
 
-    func testNobodyEverExceedsSixConceded() {
+    func testNobodyEverExceedsTheConcedeLimit() {
         guard let match = played() else { return }
         for player in match.state.players {
             XCTAssertLessThanOrEqual(player.conceded, tuning.concedesToElimination)
@@ -156,9 +207,10 @@ final class EliminationTests: XCTestCase {
         let redemptions = match.events.filter { if case .redeemed = $0 { return true }; return false }.count
 
         // Goals and tallies stopped being the same number when scoring began wiping marks
-        // off: the four players knocked out account for 24, and every redemption along the way
-        // means one more goal had to be scored to get there.
-        XCTAssertGreaterThanOrEqual(goals, 24, "four players out at six each")
+        // off: the four players knocked out account for four tallies' worth between them, and
+        // every redemption along the way means one more goal had to be scored to get there.
+        XCTAssertGreaterThanOrEqual(goals, 4 * tuning.concedesToElimination,
+                                    "four players out at \(tuning.concedesToElimination) each")
         XCTAssertEqual(goals - redemptions,
                        match.state.players.reduce(0) { $0 + $1.conceded },
                        "every goal is either a mark added or a mark taken back")

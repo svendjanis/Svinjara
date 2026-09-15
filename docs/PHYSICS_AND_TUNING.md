@@ -110,18 +110,18 @@ construct a variant without touching global state.
 | | |
 |---|---|
 | Radius | 0.11 m |
-| Damping | 0.68 /s (concrete rolls far — grass would be ~1.4) |
+| Damping | 0.72 /s (concrete rolls far — grass would be ~1.4) |
 | Wall restitution | 0.72 |
 | Post restitution | 0.85 |
 | Rest threshold | 0.15 m/s |
-| Max speed | 22 m/s |
+| Max speed | 19 m/s |
 
 ### Player
 | | |
 |---|---|
 | Radius | 0.42 m |
-| Acceleration | 26 m/s² |
-| Top speed | 5.6 m/s |
+| Acceleration | 21 m/s² |
+| Top speed | 4.5 m/s |
 | Friction | 8.0 /s |
 | Turn rate | 12 rad/s |
 | Restitution | 0.30 |
@@ -130,18 +130,19 @@ construct a variant without touching global state.
 | | |
 |---|---|
 | Charge time to full | 0.55 s |
-| Speed at min charge (a bare tap) | 8.5 m/s |
-| Speed at full charge | 17 m/s |
+| Speed at min charge (a bare tap) | 7.5 m/s |
+| Speed at full charge | 15 m/s |
 | Reach | radii + 0.50 m |
 | Arc | ±75° of facing |
 | Aim assist window | ±40° |
-| Dribble grip | 0.78 of your closing speed |
+| Dribble grip | 0.72 of your closing speed |
+| Dribble gather | push steered up to 0.55 rad toward your run |
 
 ### Tackle (the dash)
 | | |
 |---|---|
-| Duration | 0.22 s |
-| Speed | 9.5 m/s |
+| Duration | 0.27 s |
+| Speed | 7.7 m/s |
 | Cooldown | 1.6 s |
 | Shove impulse | 4.5 m/s |
 | Stagger inflicted | 0.4 s |
@@ -149,32 +150,58 @@ construct a variant without touching global state.
 ### Match
 | | |
 |---|---|
-| Concedes to elimination | 6 |
+| Concedes to elimination | 4 |
 | Scoring redeems one (floored at 0) | yes |
 | Celebration pause | 1.2 s |
 | Home spot radius | 0.88 R |
+| Restart line-up spread | ±0.06 R, ±half a mouth sideways |
+| Goal kick spot | 0.78 R, in front of the conceder's own mouth |
 | Stagnation timeout | 7 s |
 | Stagnation radius | 2 m |
+
+### Bot
+| | |
+|---|---|
+| Pace (stick push, every tier) | 0.93 |
+| Shot bar | easy 0.55 · normal 0.75 · hard 0.95 |
+| Carry patience | easy 1.2 s · normal 1.8 s · hard 2.4 s, ×0.7–1.4 |
+| Press range | 0.70 of the pitch width, second nearest only |
 
 ## 7. How these were chosen
 
 Start from physical plausibility, then tune against the numbers that matter to the feel:
 
-- **Top speed 5.6 m/s vs ball 17 m/s.** A struck ball crosses the 19 m pitch in ~1.1 s; a
-  player crosses it in ~3.4 s. You cannot chase a shot down, only anticipate it. This ratio is
+- **Top speed 4.5 m/s vs ball 15 m/s.** A struck ball crosses the 19 m pitch in ~1.5 s; a
+  player crosses it in ~4.2 s. You cannot chase a shot down, only anticipate it. This ratio is
   the single biggest lever on how defensive the game feels.
-- **Damping 0.68/s.** A ball struck at full power still has ~7 m/s after 2 s, so it rattles
-  around the circle rather than dying in the middle. Concrete, not grass.
+
+  It used to be 5.6 against 17, and the whole game came down a fifth because at that pace there
+  was no time to read where the ball would end up — a scramble rather than a game. Only the
+  ceiling moved: acceleration came down in the same proportion, so the time from standstill to
+  top speed is unchanged at ~0.21 s and the stick answers exactly as fast as it did.
+- **Damping 0.72/s.** What this number has to clear is `kickMaxSpeed / ballDamping` — how far a
+  struck ball can ever travel — against the 19 m pitch. At 0.80 it was 17.5 m, and two of the
+  four goals you are attacking were out of range from your own end.
 - **Mouth 4.4 m vs player 0.84 m across.** One body covers under a quarter of their own mouth,
   so standing still never makes a goal safe. Guarding requires reading the shot.
-- **Dash 9.5 m/s for 0.22 s** covers ~2.1 m — just enough to reach a shot aimed at the far post
-  of your own mouth, and not enough to cross the pitch with it.
-- **6 concedes** puts a full match at 24 goals minimum.
+- **Dash 7.7 m/s for 0.27 s** covers ~2.1 m — just enough to reach a shot aimed at the far post
+  of your own mouth, and not enough to cross the pitch with it. It slowed with everything else
+  and was lengthened to match, so a lunge still buys the same ground.
+- **Dribble gather 0.55 rad.** Two circles meeting send the ball off along the line between
+  their centres, so a touch taken a few centimetres off-line puts the ball further off-line
+  still and the next touch compounds it. Contact alone *diverges*, which is the honest reason
+  carrying the ball felt like herding however the grip was set: grip decides how fast the ball
+  leaves, not which way. A foot points where its owner is running, so the push is steered
+  toward the direction of travel — capped, so sprinting past a ball still only clips it.
+- **4 concedes.** Six, until the bots learned to defend — see §7.4.
 - **Home spot 0.88 R**, so a player restarts 1.1 m from their own line rather than 4.3 m in
   front of it. At 0.55 R every goal was undefended at the instant of a kickoff and 19% of all
   goals arrived inside two seconds of one. Depth was swept: below about 0.85 R the restart is
   effectively a scripted goal — the gap from restart to goal collapses onto a single value
   around 2.2 s — and above it a real scramble opens up (p10 2.4 s, median 5.4 s).
+- **The goal kick at 0.78 R**, taken by whoever conceded, with everybody else on their own
+  line. See §7.3: moving the home spot deep was only half the fix, and the half that could be
+  measured with the test that existed at the time.
 
 ### What the sweeps actually said
 
@@ -212,3 +239,78 @@ starting to pay.
 `BalanceSimTests` re-runs a smaller version of this. Any change to this table should be checked
 against it, and a degenerate win distribution — one slot winning far more than a fifth of the
 time — is a bug in the AI or the geometry, not an acceptable outcome.
+
+### The restart was a script, and one threshold could not see it
+
+Moving the home spots out to 0.88 R was checked by asking whether a goal arrived within 1.5 s
+of a restart, and the answer was a clean 0.0%. The test passed for months. Plotted as a
+histogram instead, over 24 bot matches and 1,177 goals:
+
+| gap from restart to goal | share of *all* goals in the game |
+|---|---|
+| 2.00–2.25 s | 4.4% |
+| **2.25–2.50 s** | **25.9%** |
+| 2.50–2.75 s | 6.6% |
+| 2.75–3.00 s | 2.0% |
+
+A quarter of every goal in the game landed in one quarter-second bucket. Nothing a person does
+is that sharp: it was the same race, won by the same run, ending the same way, every single
+time. Five players the same distance from a ball on the centre spot, all starting from a
+standstill, and nothing downstream of that is random. The 1.5 s threshold sat just under it and
+reported nothing wrong.
+
+Four separate things were needed, and the sizes are worth recording because they are not what
+they look like:
+
+1. **A goal kick instead of a centre-spot kickoff.** Whoever conceded restarts, with the ball
+   in front of their own mouth and everybody else on their line. There is no race, because the
+   ball is already at somebody's feet, and no quick goal, because the nearest rival mouth is
+   10 m away with all five players at home. This is the structural half of the fix.
+2. **Pressing.** Only the single nearest player ever chased the ball; everyone else stood on
+   their line. A ball at somebody's feet therefore crossed the whole pitch unopposed, and the
+   only thing between it and a goal was the owner of whichever mouth it finally arrived at.
+   The next nearest now closes them down — exactly one, because sending everybody is the
+   failure this game started with. Worth 27.6% → 16.9% of goals arriving inside 3 s.
+3. **A shot bar.** A bot took the best shot available even when the best available was
+   dreadful, which from the centre spot they all are.
+4. **Clearing what the bot remembers at the whistle.** The perception buffer holds the ball as
+   it was a fraction of a second ago; during a celebration what it holds is the ball crossing a
+   line. Every bot spent the first moments of a restart believing the ball was still in the
+   net — long enough to commit to a shot from a position the ball was nowhere near, and
+   `commitShot` then held that plan for 0.6 s more. This single bug was 8.6% of every goal in
+   the game arriving within 2 s of a restart, and 46% of those were own goals: a ball hammered
+   at a phantom, deflected in off whoever happened to be standing in the way. Clearing the
+   buffer took it to 2.0%.
+
+Where it ended up, at 80 matches:
+
+| | before | after |
+|---|---|---|
+| tallest 0.25 s bucket | 25.9% | 6.6% |
+| goals within 3 s of a restart | ~39% | 13.9% |
+| goals more than 6 s after one | 37.8% | 52.4% |
+| median gap | 4.65 s | 6.32 s |
+
+`testNoSingleMomentAfterARestartOwnsTheGoals` now asserts the shape rather than a point on it.
+A quarter-second bucket is narrower than the spread of anything a person does, so a tall one is
+a script; a flat-ish distribution puts 3–4% in each.
+
+### Six concedes became four
+
+Elimination needs somebody to *fall behind*. Redemption means a goal only grows the table when
+its scorer is already on zero, which was fine against bots that conceded in lumps — a restart
+used to hand somebody three in a minute. Once the goal kick and pressing spread the goals
+evenly, the table stopped growing. Measured over 80 easy matches: 4.4 goals a minute scored,
+total tally climbing by 1.3 a minute, so reaching six took thirteen minutes and one match in
+ten never got there inside fifteen.
+
+The threshold is the cheap half of that trade. Turning redemption off entirely puts six back in
+the band at a 239 s median — it is that rule, not the pace, that costs the time — but
+redemption is what stops camping on your own line being the winning move, so the number gave
+way instead:
+
+| concedes | easy | normal | hard | longest of 240 |
+|---|---|---|---|---|
+| 6 | 617 s, 1 in 10 unfinished | 520 s | 405 s | — |
+| 5 | 446 s, 1 in 80 unfinished | 405 s | 328 s | 747 s |
+| **4** | **340 s** | **295 s** | **222 s** | **495 s** |
