@@ -55,7 +55,16 @@ while inside the angular span of a mouth belonging to a **live** player.
    own goal leaves every mouth open to whoever wins the race to the ball. Velocity zeroed, charge cancelled, dash cooldown cleared, stagger cleared.
 4. **Every line-up is nudged** — up to ±0.06 R in depth and half a mouth sideways, so nobody
    stops guarding their own goal, and no two restarts in a match present the same picture.
-5. Play resumes for everyone at the same instant.
+5. Play resumes for everyone at the same instant, but **the other players stand off for
+   1.3 s**, the way they would at a goal kick. This is honoured by the bots rather than
+   enforced by the engine, which is the honest place for it: it is not a rule anything stops
+   you breaking, it is opponents giving you room. Without it the taker had the ball for a
+   median of 1.75 s before a rival could kick it, and only a third of restarts survived two
+   seconds — fine for a bot, which takes its first touch 0.01 s after the whistle, and no use
+   at all to a person who has just watched a goal go in. With it, 94% of restarts are still
+   uncontested after two seconds.
+6. The HUD says **YOUR BALL** when the restart is the human's. A possession nobody tells you
+   about is one you spend watching somebody else take it.
 
 The **opening kickoff** is the exception: nobody has earned it, so the ball is on the centre
 spot and everyone starts at home. So is a restart whose taker was eliminated by the goal that

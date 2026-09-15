@@ -40,6 +40,8 @@ struct BotBrain {
     private var shotAge: Double = 0
     /// How long the current mode has been held.
     private var modeAge: Double = 0
+    /// How long since play resumed, for the goal-kick stand-off.
+    private var sinceWhistle: Double = 0
 
     /// The shortest time any bot may hold a mode.
     ///
@@ -50,6 +52,21 @@ struct BotBrain {
     /// across the pitch. Beyond it, the second nearest player is not pressing — they are just
     /// leaving their goal to chase something at the far side of the circle.
     private static let pressRange: Double = 0.70
+
+    /// How long the bots leave the taker of a goal kick alone.
+    ///
+    /// The restart already gives them the ball — it is at their feet at the whistle and the
+    /// nearest rival is eight metres away. Measured, that bought the taker a median of 1.75 s
+    /// of uncontested possession, and only a third of restarts still had it after two. A bot
+    /// takes its first touch 0.01 s after the whistle and that is plenty. A person who has
+    /// just watched a goal go in, heard the whistle and had the pitch snap to new positions
+    /// has not got their thumb back on the stick yet, so what a restart *felt* like was the
+    /// ball being put near your goal and immediately taken off you.
+    ///
+    /// So the bots stand off, the way players do at a goal kick. This is honoured by the bots
+    /// rather than enforced by the engine, which is the honest place for it: it is not a rule
+    /// that anything prevents you breaking, it is opponents giving you room.
+    private static let restartStandOff: Double = 1.3
 
     private(set) var currentMode: BotMode = .recover
 
@@ -74,6 +91,7 @@ struct BotBrain {
 
         shotAge += tuning.fixedStep
         modeAge += tuning.fixedStep
+        sinceWhistle += tuning.fixedStep
 
         // Reaction latency is modelled as *perception* lag, not as thinking frequency.
         //
@@ -135,6 +153,7 @@ struct BotBrain {
         // Free to decide again on the very first step of the restart, rather than being held
         // to whatever was true while the ball was in somebody's net.
         modeAge = Self.minimumDwell
+        sinceWhistle = 0
     }
 
     /// Tracks how long I have been getting nowhere with the ball at my feet.
@@ -201,6 +220,16 @@ struct BotBrain {
     /// arriving, not merely sitting nearby — outranks it. When the ball *is* near your own
     /// goal, going to get it and hitting it at somebody else is what defending looks like.
     private mutating func reconsider(state: MatchState, tuning: Tuning) {
+        // Somebody else's goal kick: give them a moment. Holding your line is the whole of it
+        // — the ball is at their feet and nine metres from anything of mine, so there is
+        // nothing to defend against yet either. See `restartStandOff`.
+        if let taker = state.restartTaker,
+           taker != index,
+           sinceWhistle < Self.restartStandOff {
+            adopt(.recover)
+            return
+        }
+
         let threat = ThreatModel.threat(to: index, state: state, tuning: tuning)
 
         // A genuine emergency — the ball actually arriving, not merely sitting nearby —

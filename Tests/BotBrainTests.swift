@@ -385,4 +385,69 @@ final class BotBrainTests: XCTestCase {
         XCTAssertGreaterThan(restarts, 5, "not enough restarts to judge")
     }
 
+    /// The taker of a goal kick must actually get to keep it for a moment.
+    ///
+    /// Giving them the ball was never the hard part — it is at their feet at the whistle and
+    /// the nearest rival is eight metres away. But a bot takes its first touch 0.01 s after
+    /// the whistle, and a person who has just watched a goal go in has not got their thumb
+    /// back on the stick yet. Measured before the bots stood off, the taker had a median of
+    /// 1.75 s before a rival could kick it and only a third of restarts survived two seconds,
+    /// so what a restart felt like was the ball being put near your goal and taken off you.
+    func testTheTakerOfAGoalKickIsLeftAloneForAMoment() {
+        var engine = MatchFixture.engine()
+        var brains = (0..<5).map { BotBrain(index: $0, difficulty: .hard, seed: 17) }
+        var measured = 0
+
+        // Player 0 idles throughout — a person still watching the goal they just let in.
+        var watching: (taker: Int, since: Double)?
+        for _ in 0..<MatchFixture.steps(forSeconds: 300) {
+            var inputs = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
+            inputs[0] = .idle
+            for event in engine.step(inputs: inputs) where event == .resumed {
+                watching = engine.state.restartTaker.map { ($0, engine.state.elapsed) }
+            }
+
+            guard let watch = watching, engine.state.phase.isPlaying else { continue }
+            let held = engine.state.elapsed - watch.since
+            let contested = engine.state.players.contains {
+                $0.isAlive && $0.index != watch.taker
+                    && KickResolver.canStrike(body: $0.body, ball: engine.state.ball,
+                                              tuning: tuning)
+            }
+            if contested {
+                XCTAssertGreaterThan(held, 1.5,
+                                     "a rival reached the goal kick after only \(held) s")
+                measured += 1
+                watching = nil
+            } else if held > 3 {
+                measured += 1
+                watching = nil
+            }
+            if engine.state.isOver { break }
+        }
+        XCTAssertGreaterThan(measured, 8, "not enough restarts to judge")
+    }
+
+    /// And the stand-off is for somebody else's restart only — the taker goes for their own.
+    func testTheTakerIsNotStoodOffFromTheirOwnGoalKick() {
+        var engine = MatchFixture.engine()
+        var brains = (0..<5).map { BotBrain(index: $0, difficulty: .normal, seed: 17) }
+        var checked = 0
+
+        for _ in 0..<MatchFixture.steps(forSeconds: 300) {
+            let inputs = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
+            guard engine.step(inputs: inputs).contains(.resumed) else {
+                if engine.state.isOver { break }
+                continue
+            }
+            guard let taker = engine.state.restartTaker else { continue }
+            _ = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
+            XCTAssertEqual(brains[taker].currentMode, .attack,
+                           "the taker stood off from their own goal kick")
+            checked += 1
+            if engine.state.isOver { break }
+        }
+        XCTAssertGreaterThan(checked, 5, "not enough restarts to judge")
+    }
+
 }
