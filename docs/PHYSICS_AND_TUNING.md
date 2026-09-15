@@ -163,6 +163,7 @@ construct a variant without touching global state.
 | | |
 |---|---|
 | Pace (stick push, every tier) | 0.93 |
+| Goal-kick stand-off | 1.3 s |
 | Shot bar | easy 0.55 · normal 0.75 · hard 0.95 |
 | Carry patience | easy 1.2 s · normal 1.8 s · hard 2.4 s, ×0.7–1.4 |
 | Press range | 0.70 of the pitch width, second nearest only |
@@ -281,6 +282,15 @@ they look like:
    the game arriving within 2 s of a restart, and 46% of those were own goals: a ball hammered
    at a phantom, deflected in off whoever happened to be standing in the way. Clearing the
    buffer took it to 2.0%.
+
+A fifth thing was needed once the other four were in, and it is the one a histogram cannot
+see: whether the restart *reads* as yours. It is not enough for the engine to put the ball at
+the conceder's feet — measured, that bought them a median of 1.75 s before a rival could kick
+it, and only 35% of restarts still had it after two seconds. A bot takes its first touch 0.01 s
+after the whistle and never notices. A person has just watched a goal go in, heard a whistle
+and seen the pitch snap to new positions, and does not have their thumb back on the stick. So
+the bots now stand off for 1.3 s, and the HUD says whose ball it is: median uncontested
+possession 2.22 s, and 94% of restarts still uncontested after two seconds.
 
 Where it ended up, at 80 matches:
 

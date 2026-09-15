@@ -348,7 +348,18 @@ final class GameScene: SKScene {
 
             case .resumed, .ballReset:
                 snapNextFrame = true
-                if case .resumed = event { sfx.play(.whistle, volume: 0.5) }
+                guard case .resumed = event else { break }
+                sfx.play(.whistle, volume: 0.5)
+
+                // Say so when the restart is yours. It already was — the ball is at your feet
+                // at the whistle and the rivals stand off — but a player who has just watched
+                // a goal go in has no way of knowing that, and a possession nobody tells you
+                // about is one you spend watching somebody else take it.
+                if engine.state.restartTaker == GameScene.humanIndex {
+                    let human = engine.state.players[GameScene.humanIndex]
+                    hud?.announce(text: "YOUR BALL", colour: human.nation.shirt.uiColor)
+                    hud?.dismissAfter(1.1)
+                }
 
             case .finished:
                 if let winner = engine.state.winner {
