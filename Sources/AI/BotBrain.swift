@@ -46,7 +46,7 @@ struct BotBrain {
     /// The shortest time any bot may hold a mode.
     ///
     /// Stops the attack/defend decision chattering when a distance wobbles on the boundary.
-    private static let minimumDwell: Double = 0.30
+    static let minimumDwell: Double = 0.30
 
     /// How far away a ball may be and still be worth closing down, as a fraction of the way
     /// across the pitch. Beyond it, the second nearest player is not pressing — they are just

@@ -308,4 +308,132 @@ final class KickResolverTests: XCTestCase {
         XCTAssertLessThan(ball.velocity.length, speed, "the ball never outruns its carrier")
     }
 
+    // MARK: Control
+
+    private let step = Tuning.default.fixedStep
+
+    /// The zone has to sit inside kicking range, or there would be a band where the ball
+    /// answers your run but not your button.
+    func testTheControlZoneIsInsideKickingRange() {
+        XCTAssertGreaterThan(tuning.controlReach, tuning.touchDistance)
+        XCTAssertLessThan(tuning.controlReach, tuning.kickReach)
+    }
+
+    func testTheBallMustBeInsideTheZone() {
+        let body = PlayerBody(position: .zero, velocity: Vec2(x: 4, y: 0), facing: 0)
+        var inside = BallState(position: Vec2(x: tuning.controlReach - 0.01, y: 0))
+        var outside = BallState(position: Vec2(x: tuning.controlReach + 0.01, y: 0))
+
+        XCTAssertTrue(KickResolver.resolveControl(body: body, ball: &inside, dt: step,
+                                                  tuning: tuning))
+        XCTAssertFalse(KickResolver.resolveControl(body: body, ball: &outside, dt: step,
+                                                   tuning: tuning))
+        XCTAssertEqual(outside.velocity, .zero, "and an untouched ball is left exactly alone")
+    }
+
+    /// The whole point: run at a loose ball and it comes up to your pace instead of being
+    /// punted and chased.
+    func testTheBallIsBroughtUpToYourPace() {
+        let body = PlayerBody(position: .zero, velocity: Vec2(x: 4, y: 0), facing: 0)
+        var ball = BallState(position: Vec2(x: tuning.touchDistance, y: 0))
+
+        for _ in 0..<60 {  // half a second
+            KickResolver.resolveControl(body: body, ball: &ball, dt: step, tuning: tuning)
+        }
+
+        XCTAssertEqual(ball.velocity.x, 4, accuracy: 0.2)
+        XCTAssertEqual(ball.velocity.y, 0, accuracy: 1e-12)
+    }
+
+    /// And the other half: turn, and the ball turns with you rather than carrying straight on.
+    func testTheBallComesRoundOntoYourHeading() {
+        // Rolling due east; the carrier is now running due north with it in front of them.
+        let body = PlayerBody(position: .zero, velocity: Vec2(x: 0, y: 4), facing: .pi / 2)
+        var ball = BallState(position: Vec2(x: 0, y: tuning.touchDistance),
+                             velocity: Vec2(x: 3, y: 0))
+        let before = ball.velocity.angle
+
+        for _ in 0..<30 {  // a quarter of a second
+            KickResolver.resolveControl(body: body, ball: &ball, dt: step, tuning: tuning)
+        }
+
+        XCTAssertLessThan(Angles.separation(ball.velocity.angle, .pi / 2),
+                          Angles.separation(before, .pi / 2),
+                          "the ball has swung toward the way the carrier is now running")
+        XCTAssertLessThan(abs(ball.velocity.x), 3, "and the old heading is bleeding off")
+    }
+
+    /// Authority is strongest at your feet and gone at the edge, so the zone gathers rather
+    /// than magnetises.
+    func testControlFallsOffWithDistance() {
+        let body = PlayerBody(position: .zero, velocity: Vec2(x: 4, y: 0), facing: 0)
+        var near = BallState(position: Vec2(x: tuning.touchDistance, y: 0))
+        var far = BallState(position: Vec2(x: tuning.controlReach - 0.001, y: 0))
+
+        KickResolver.resolveControl(body: body, ball: &near, dt: step, tuning: tuning)
+        KickResolver.resolveControl(body: body, ball: &far, dt: step, tuning: tuning)
+
+        XCTAssertGreaterThan(near.velocity.x, far.velocity.x)
+        XCTAssertLessThan(far.velocity.x, 0.01, "the edge of the zone barely registers")
+    }
+
+    /// A ball beside you is not yours. Without this the zone would drag every loose ball
+    /// along with anybody who happened to sprint past it.
+    func testABallBesideOrBehindYouIsNotUnderControl() {
+        let body = PlayerBody(position: .zero, velocity: Vec2(x: 4, y: 0), facing: 0)
+        var beside = BallState(position: Vec2(x: 0, y: tuning.touchDistance))
+        var behind = BallState(position: Vec2(x: -tuning.touchDistance, y: 0))
+
+        XCTAssertFalse(KickResolver.resolveControl(body: body, ball: &beside, dt: step,
+                                                   tuning: tuning))
+        XCTAssertFalse(KickResolver.resolveControl(body: body, ball: &behind, dt: step,
+                                                   tuning: tuning))
+        XCTAssertEqual(beside.velocity, .zero)
+        XCTAssertEqual(behind.velocity, .zero)
+    }
+
+    /// A shot crossing your feet is somebody else's ball, and the zone must not swallow it.
+    /// The slowest legal kick is `kickMinSpeed`, well above the catch speed.
+    func testAStruckBallPassesStraightThroughTheZone() {
+        let body = PlayerBody(position: .zero, velocity: Vec2(x: 4, y: 0), facing: 0)
+        var ball = BallState(position: Vec2(x: tuning.touchDistance + 0.1, y: 0),
+                             velocity: Vec2(x: tuning.kickMinSpeed, y: 0))
+
+        XCTAssertFalse(KickResolver.resolveControl(body: body, ball: &ball, dt: step,
+                                                   tuning: tuning))
+        XCTAssertEqual(ball.velocity.x, tuning.kickMinSpeed, accuracy: 1e-12)
+        XCTAssertLessThan(tuning.controlCatchSpeed, tuning.kickMinSpeed)
+    }
+
+    /// Standing over a slow ball settles it, which is what a foot on the ball is.
+    func testAStationaryPlayerSettlesTheBallInFrontOfThem() {
+        let body = PlayerBody(position: .zero, velocity: .zero, facing: 0)
+        var ball = BallState(position: Vec2(x: tuning.touchDistance, y: 0),
+                             velocity: Vec2(x: 2, y: 0))
+
+        for _ in 0..<120 {
+            KickResolver.resolveControl(body: body, ball: &ball, dt: step, tuning: tuning)
+        }
+
+        XCTAssertLessThan(ball.velocity.length, 0.1)
+        XCTAssertFalse(ball.velocity.x.isNaN)
+    }
+
+    /// Rates are exponential everywhere else in the simulation for this reason: the outcome
+    /// must not depend on how the step was sliced.
+    func testControlIsStepSizeIndependent() {
+        let body = PlayerBody(position: .zero, velocity: Vec2(x: 4, y: 0), facing: 0)
+        let start = BallState(position: Vec2(x: tuning.touchDistance, y: 0))
+
+        var coarse = start
+        KickResolver.resolveControl(body: body, ball: &coarse, dt: 1.0 / 60, tuning: tuning)
+
+        var fine = start
+        for _ in 0..<2 {
+            KickResolver.resolveControl(body: body, ball: &fine, dt: 1.0 / 120, tuning: tuning)
+        }
+
+        XCTAssertEqual(coarse.velocity.x, fine.velocity.x, accuracy: 1e-12)
+    }
+
 }

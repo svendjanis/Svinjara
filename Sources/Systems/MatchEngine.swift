@@ -107,7 +107,8 @@ struct MatchEngine {
         //    the line from holding the whole match up.
         if enforceProgress(dt: dt) { events.append(.ballReset) }
 
-        // 9. Bodies against the ball, then kicks.
+        // 9. The ball: shepherded by whoever is nearest, then shouldered by every body, then
+        //    kicked.
         //
         // Order matters, and index order is not neutral: each contact repositions the ball and
         // overwrites the last one's velocity, so whoever is processed last gets the final say.
@@ -121,6 +122,24 @@ struct MatchEngine {
             .filter { state.players[$0].isAlive }
             .sorted { state.players[$0].body.position.distanceSquared(to: state.ball.position)
                     > state.players[$1].body.position.distanceSquared(to: state.ball.position) }
+
+        // Control belongs to the nearest player, and to one player only. Five overlapping
+        // claims on the same ball would compound into five times the pull, and a contested
+        // ball belongs to whoever is closest — the same answer the contact order below
+        // arrives at from the other end.
+        //
+        // A lunge is a tackle, not a carry: a dasher pokes the ball with their body and has
+        // to slow down to collect it, which is the cost that stops dash being a free run with
+        // the ball. Staggered players have lost it for the same reason they have lost their
+        // steering.
+        if let nearest = byDistance.last,
+           !state.players[nearest].isDashing,
+           !state.players[nearest].isStaggered {
+            KickResolver.resolveControl(body: state.players[nearest].body,
+                                        ball: &state.ball,
+                                        dt: dt,
+                                        tuning: tuning)
+        }
 
         for index in byDistance {
             let touched = KickResolver.resolveBodyContact(player: index,
