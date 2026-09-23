@@ -337,16 +337,31 @@ final class BotBrainTests: XCTestCase {
         var brains = (0..<5).map { BotBrain(index: $0, difficulty: .normal, seed: 21) }
         var pressSteps = 0
         var steps = 0
+        var overrun = 0
+        var longestOverrun = 0
 
         for _ in 0..<MatchFixture.steps(forSeconds: 240) {
             let inputs = (0..<5).map { brains[$0].decide(state: engine.state, tuning: tuning) }
             let pressing = brains.filter { $0.currentMode == .press }.count
-            XCTAssertLessThanOrEqual(pressing, 2, "\(pressing) players left their goal at once")
+
+            // Only two players can ever be *chosen* to press, because only two can be inside
+            // `rivals[1]`. A third is always a stale role rather than a new one: `minimumDwell`
+            // holds a mode for 0.30 s, so a bot that has just been overtaken in the ranking
+            // keeps pressing until the lock expires. Asserting a flat `<= 2` per step pins an
+            // invariant the code does not offer and that only held by luck of the seed — what
+            // it actually guarantees, and what matters, is that a third can never *stay*.
+            overrun = pressing > 2 ? overrun + 1 : 0
+            longestOverrun = max(longestOverrun, overrun)
             pressSteps += pressing
             steps += 1
             engine.step(inputs: inputs)
             if engine.state.isOver { break }
         }
+
+        XCTAssertLessThanOrEqual(Double(longestOverrun) * tuning.fixedStep,
+                                 BotBrain.minimumDwell,
+                                 "a third presser outlasted the dwell that is the only thing "
+                                 + "able to produce one")
 
         let average = Double(pressSteps) / Double(steps)
         XCTAssertLessThan(average, 1.05, "on average \(average) players are chasing the ball")

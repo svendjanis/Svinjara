@@ -138,6 +138,14 @@ construct a variant without touching global state.
 | Dribble grip | 0.72 of your closing speed |
 | Dribble gather | push steered up to 0.55 rad toward your run |
 
+### Control
+| | |
+|---|---|
+| Zone | radii + 0.38 m (0.91 m, inside the 1.03 m kick reach) |
+| Pull | 6.5 /s at full authority |
+| Authority | linear to zero across the zone, × cos of the angle off your run |
+| Catch speed | 6.0 m/s — quicker than that and the ball passes through |
+
 ### Tackle (the dash)
 | | |
 |---|---|
@@ -194,6 +202,25 @@ Start from physical plausibility, then tune against the numbers that matter to t
   carrying the ball felt like herding however the grip was set: grip decides how fast the ball
   leaves, not which way. A foot points where its owner is running, so the push is steered
   toward the direction of travel — capped, so sprinting past a ball still only clips it.
+- **Control zone radii + 0.38 m.** Gather is only half the answer, because both grip and
+  gather only ever speak to the ball at the instant two circles meet. Between touches the ball
+  is deaf: turn while it is rolling and it carries straight on, because nothing in the step
+  ever takes speed *off* it in the direction you have stopped going. Leading the ball therefore
+  meant punting it and chasing it, and a change of direction meant giving it up.
+
+  So a shepherding zone a little wider than the body, inside which the ball's velocity is eased
+  toward the carrier's — which matches its pace and brings it round at the same time. Three
+  things keep it from being magnetism: authority falls to zero at the edge of the zone, it is
+  weighted by how squarely the ball sits in front of the run (so sprinting past a loose ball
+  still only brushes it), and a ball above 6.0 m/s is not captured at all. That last number is
+  the load-bearing one — it sits above top speed and below `kickMinSpeed` of 7.5, so every pass
+  and every shot crosses the zone untouched and nobody can stand in a lane and hoover the ball
+  up. The zone is also kept inside `kickReach`, so there is no band where the ball answers your
+  run but not your button.
+
+  Control goes to the nearest player only, and not to a dasher or to anyone staggered: a lunge
+  is a tackle, so it pokes the ball with the body and the dasher has to slow down to collect
+  it. That is what stops the dash being a free run with the ball.
 - **4 concedes.** Six, until the bots learned to defend — see §7.4.
 - **Home spot 0.88 R**, so a player restarts 1.1 m from their own line rather than 4.3 m in
   front of it. At 0.55 R every goal was undefended at the instant of a kickoff and 19% of all

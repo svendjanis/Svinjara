@@ -100,6 +100,28 @@ struct Tuning: Equatable {
     /// brushes it — you cannot drag it round a corner it never went near.
     var dribbleGather: Double = 0.55
 
+    // MARK: Control
+
+    /// How far past touching distance the ball is still yours, in metres.
+    ///
+    /// Contact is a circle 0.53 m across; this puts a shepherding zone of 0.91 m around it.
+    /// Kept under `kickReach` on purpose — anything you can carry, you can also hit, so there
+    /// is never a gap where the ball answers your run but not your button.
+    var controlPadding: Double = 0.38
+
+    /// How quickly the ball is brought onto your heading and your pace, per second.
+    ///
+    /// At full authority this closes 63% of the difference in 0.15 s. Fast enough that the
+    /// ball comes round with you, slow enough that you can see it happen.
+    var controlPull: Double = 6.5
+
+    /// The fastest ball you can settle, in m/s. Anything quicker is passing through.
+    ///
+    /// A little over `playerTopSpeed`, which is the whole rule in one line: a ball you could
+    /// run alongside is a ball you can control. A pass or a shot — never below `kickMinSpeed`
+    /// of 7.5 — crosses the zone untouched, so this cannot swallow somebody else's ball.
+    var controlCatchSpeed: Double = 6.0
+
     // MARK: Dash
 
     /// Slowed with everything else, and lengthened to match, so a lunge still covers the same
@@ -185,6 +207,12 @@ struct Tuning: Equatable {
 
     /// How close the ball must be to be kickable.
     var kickReach: Double { playerRadius + ballRadius + kickReachPadding }
+
+    /// Distance at which the two bodies actually touch.
+    var touchDistance: Double { playerRadius + ballRadius }
+
+    /// How close the ball must be to be under your control. Always inside `kickReach`.
+    var controlReach: Double { touchDistance + controlPadding }
 
     /// Distance covered by one dash. ~2.1 m — enough to reach a shot at the far post of your
     /// own mouth, not enough to cross the pitch with.

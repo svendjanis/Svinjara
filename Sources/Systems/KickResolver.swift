@@ -71,6 +71,67 @@ enum KickResolver {
         return .kicked(player: player, power: fraction)
     }
 
+    /// The ball under your control, as opposed to struck by you.
+    ///
+    /// Body contact gives you one touch each time the two circles meet and nothing at all in
+    /// between, so the ball spends most of its life deaf. Turn while it is rolling and it
+    /// carries straight on, because nothing in the step ever takes speed *off* it in the
+    /// direction you have stopped going — grip decides how hard you punt it and gather decides
+    /// which way, and neither is any help once it has left your feet and you want it back on a
+    /// new heading. That is what "no way to control it" was: not a weak touch, but a ball that
+    /// only ever hears from you at the instant of a collision.
+    ///
+    /// So there is a zone a little wider than your own body inside which the ball is being
+    /// shepherded rather than hit: its velocity is eased toward yours, which matches its pace
+    /// to your pace and brings it round onto your heading at the same time. Three things keep
+    /// that from being magnetism:
+    ///
+    /// - It falls off to nothing at the edge of the zone, so the ball is gathered by your feet
+    ///   rather than by an aura. At touching distance it is at full strength.
+    /// - It is weighted by how squarely the ball sits in front of your run, so a ball beside
+    ///   you is not yours and one behind you is not yours at all. Running past a loose ball
+    ///   still only brushes it, which is the same promise `dribbleGather` makes.
+    /// - A ball above `controlCatchSpeed` is not captured, so a pass or a shot crosses the
+    ///   zone untouched. You cannot stand in a lane and hoover up somebody else's ball.
+    ///
+    /// This deliberately does not set `lastTouchedBy`. Shepherding is not a touch, and the one
+    /// thing that flag feeds — the goal announcement — should name whoever last actually hit
+    /// the ball, not whoever it happened to roll past.
+    ///
+    /// Returns whether the ball was under control this step.
+    @discardableResult
+    static func resolveControl(body: PlayerBody,
+                               ball: inout BallState,
+                               dt: Double,
+                               tuning: Tuning) -> Bool {
+        guard ball.velocity.lengthSquared
+                <= tuning.controlCatchSpeed * tuning.controlCatchSpeed else { return false }
+
+        let delta = ball.position - body.position
+        let distance = delta.length
+        guard distance <= tuning.controlReach, distance > 1e-9 else { return false }
+
+        let touching = tuning.touchDistance
+        let nearness = distance <= touching
+            ? 1
+            : 1 - (distance - touching) / (tuning.controlReach - touching)
+
+        // Where you are going, or where you are pointing when you are not going anywhere —
+        // the same fallback `gathered` uses, for the same reason.
+        let travel = body.velocity.lengthSquared > 1e-6 ? body.velocity.normalized
+                                                        : Vec2(angle: body.facing)
+        let frontness = max(0, travel.dot(delta / distance))
+
+        let authority = nearness * frontness
+        guard authority > 1e-9 else { return false }
+
+        // Exponential, like every other rate in the simulation, so the result does not depend
+        // on the step size.
+        let ease = 1 - exp(-tuning.controlPull * authority * dt)
+        ball.velocity += (body.velocity - ball.velocity) * ease
+        return true
+    }
+
     /// A player's body running into the ball. This is what dribbling actually is: the ball is
     /// pushed off at the speed you were carrying into it, decays under rolling resistance,
     /// and you catch it again a step later. No possession flag, no magnetism.

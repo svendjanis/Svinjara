@@ -122,7 +122,16 @@ the direction that is also fair — the restart is small compensation for the go
 - Running your **body** into the ball pushes it off at a fraction of the speed you were
   carrying into it, and only the component going into the ball — running past it must not fling
   it sideways. The fraction is under 1 deliberately, so a carried ball settles back at your feet
-  instead of outrunning you. There is no possession flag and no magnetism.
+  instead of outrunning you. There is no possession flag.
+- Inside a **control zone** slightly wider than your own body, the ball is shepherded as well
+  as struck: its velocity eases toward yours, so it keeps your pace and comes round with you
+  when you turn. It is not magnetism — the effect falls to nothing at the edge of the zone and
+  at the edge of your run, so a ball beside or behind you is not yours, and a ball travelling
+  faster than 6 m/s is not captured at all. Every legal kick leaves at 7.5 m/s or more, so no
+  pass and no shot can be hoovered out of the air by standing in its lane.
+- Control goes to the **nearest player only**, and never to a player who is dashing or
+  staggered. A lunge is a tackle: it pokes the ball away with the body, and the lunger has to
+  slow down before they can carry it.
 
 ## 8. Contact
 
